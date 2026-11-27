@@ -346,6 +346,7 @@ function shoot() {
   camera.getWorldDirection(_v3);
   const hl = Math.hypot(_v3.x, _v3.z) || 1, slope = _v3.y / hl;
   audio.shot(cur);
+  npcs.alarm(player.x, player.z, cur === 3 ? 55 : 40);
   camKick = Math.min(0.05, camKick + 0.012 * (cur === 3 ? 3 : 1));
   for (let p = 0; p < w.pellets; p++) {
     const a = yaw + (Math.random() - 0.5) * 2 * w.spread;
@@ -377,7 +378,7 @@ function punch() {
   const t = police.target(ox + dx * 0.2, oz + dz * 0.2, dx, dz, 2.2, npcs.list);
   if (t) {
     audio.punch(); spark(ox + dx * t.dist, 1.3, oz + dz * t.dist, '#fff2b0');
-    if (t.kind === 'npc') npcs.hit(t.obj, 22);
+    if (t.kind === 'npc') { npcs.hit(t.obj, 22); npcs.knock(t.obj, dx, dz, 0.9); npcs.alarm(t.obj.x, t.obj.z, 14); }
     else if (t.kind === 'officer') { t.obj.hp -= 20; t.obj.barT = 3.5; wantStars(Math.max(stars, 2)); if (t.obj.hp <= 0) wantStars(stars + 1); }
   }
 }
@@ -735,6 +736,7 @@ function loop(now) {
 
     const P = { x: car ? car.x : player.x, z: car ? car.z : player.z, car, onFoot: !car };
     npcs.update(dt, car, P.x, P.z);
+    if (npcs.pendingHits > 0) { hurt(npcs.pendingHits); npcs.pendingHits = 0; }
     for (const n of npcs.list) if (n.crime) { n.crime = false; wantStars(Math.max(stars, 1)); }
     for (const t of traffic) t.update(dt, traffic, P.x, P.z, car);
     missions.update(dt, P.x, P.z, !!car);

@@ -122,7 +122,7 @@ export function makePerson(opts) {
 
 export class NPCs {
   constructor(scene, count) {
-    this.list = [];
+    this.list = []; this.pendingHits = 0;
     for (let i = 0; i < count; i++) {
       const mesh = makePerson();
       scene.add(mesh);
@@ -155,8 +155,20 @@ export class NPCs {
     if (n.down > 0) return false;
     n.hp -= dmg; n.barT = 3.5; n.crime = true;
     if (n.hp <= 0) { n.hp = 0; n.down = n.downMax = 5; return true; }
-    n.panic = 6; n.stagger = 0.35; return false;
+    if (n.brave === undefined) n.brave = Math.random() < 0.35;
+    if (n.brave) { n.fight = 9; n.panic = 0; } else n.panic = 6;
+    n.stagger = 0.35; return false;
   }
+
+  // gunshot / violence nearby: everyone close scatters
+  alarm(x, z, r) {
+    for (const n of this.list) {
+      if (n.down > 0) continue;
+      if (Math.hypot(n.x - x, n.z - z) < r) { n.panic = Math.max(n.panic, 5 + Math.random() * 3); n.fight = 0; n.idle = 0; }
+    }
+  }
+
+  knock(n, fx, fz, d) { n.x += fx * d; n.z += fz * d; }
 
   update(dt, carObj, px, pz) {
     for (const n of this.list) {
@@ -173,7 +185,24 @@ export class NPCs {
       if (carObj && Math.abs(carObj.speed) > 5) {
         if (n.carCool <= 0 && Math.hypot(n.x - carObj.x, n.z - carObj.z) < 2.3) { n.carCool = 0.8; this.hit(n, 30 + Math.abs(carObj.speed) * 4); if (n.down > 0) continue; }
       }
-      n.carCool -= dt; n.barT -= dt;
+      n.carCool -= dt; n.barT -= dt; n.atkCool = (n.atkCool || 0) - dt;
+      if (n.fight > 0) {
+        n.fight -= dt;
+        const dx = px - n.x, dz = pz - n.z, d = Math.hypot(dx, dz) || 1;
+        n.heading = Math.atan2(dx, dz);
+        if (n.stagger > 0) n.stagger -= dt;
+        else if (d > 1.5) { n.x += dx / d * 3.4 * dt; n.z += dz / d * 3.4 * dt; n.phase += dt * 10; }
+        else if (n.atkCool <= 0) { n.atkCool = 1.1; n.atkT = 0.28; this.pendingHits += 6; }
+        if (g.visible) {
+          const u = g.userData; const k = d > 1.5 && n.stagger <= 0 ? 1 : 0;
+          const s = Math.sin(n.phase);
+          u.lL.hp.rotation.x = s * 0.7 * k; u.lR.hp.rotation.x = -s * 0.7 * k;
+          if (n.atkT > 0) { n.atkT -= dt; u.aR.sh.rotation.x = -1.5 * Math.sin(Math.PI * (1 - n.atkT / 0.28)); u.aL.sh.rotation.x = -0.7; }
+          else { u.aR.sh.rotation.x = -0.5; u.aL.sh.rotation.x = -0.5; u.aL.el.rotation.x = u.aR.el.rotation.x = -1.2; }
+          g.position.set(n.x, 0.34, n.z); g.rotation.y = n.heading;
+        }
+        continue;
+      }
       let sp = n.speed;
       if (n.panic > 0) { n.panic -= dt; sp = 3.7; n.idle = 0; }
       if (n.stagger > 0) { n.stagger -= dt; sp = 0; }

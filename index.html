@@ -105,7 +105,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">v4 · vice-style</div>
+<div id="ver">v5</div>
 <div id="rot"><b>⟳</b><div>لف الموبايل بالعرض عشان تلعب</div></div>
 
 <div id="mission" class="hud"><span id="missionText">جاري التحميل...</span><div id="timerBar"><div id="timerFill"></div></div></div>
@@ -143,10 +143,10 @@
 </div>
 <div id="err"></div>
 
-<script type="importmap">{ "imports": { "three": "./lib/three.module.min.js", "./js/config.js": "./js/config.js?v=4", "./js/controls.js": "./js/controls.js?v=4", "./js/missions.js": "./js/missions.js?v=4", "./js/player.js": "./js/player.js?v=4", "./js/vehicles.js": "./js/vehicles.js?v=4", "./js/world.js": "./js/world.js?v=4", "./js/sky.js": "./js/sky.js?v=4", "./js/npc.js": "./js/npc.js?v=4", "./js/settings.js": "./js/settings.js?v=4", "./js/radar.js": "./js/radar.js?v=4", "./js/police.js": "./js/police.js?v=4", "./js/main.js": "./js/main.js?v=4" } }</script>
+<script type="importmap">{ "imports": { "three": "./lib/three.module.min.js", "./js/config.js": "./js/config.js?v=5", "./js/controls.js": "./js/controls.js?v=5", "./js/missions.js": "./js/missions.js?v=5", "./js/player.js": "./js/player.js?v=5", "./js/vehicles.js": "./js/vehicles.js?v=5", "./js/world.js": "./js/world.js?v=5", "./js/sky.js": "./js/sky.js?v=5", "./js/npc.js": "./js/npc.js?v=5", "./js/settings.js": "./js/settings.js?v=5", "./js/radar.js": "./js/radar.js?v=5", "./js/police.js": "./js/police.js?v=5", "./js/main.js": "./js/main.js?v=5" } }</script>
 <script type="module" src="./js/main.js"></script>
 <script>
-  window.GAME_VERSION = '4';
+  window.GAME_VERSION = '5';
   fetch('./version.json?t=' + Date.now(), { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(j){
     if (String(j.v) !== window.GAME_VERSION && !sessionStorage.getItem('madina_reload_' + j.v)) { sessionStorage.setItem('madina_reload_' + j.v, '1'); location.replace(location.pathname + '?v=' + j.v + '&t=' + Date.now()); }
   }).catch(function(){});
