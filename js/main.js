@@ -5,6 +5,8 @@ import { Player } from './player.js';
 import { TrafficCar, makeParked, makeCar } from './vehicles.js';
 import { Controls } from './controls.js';
 import { Missions } from './missions.js';
+import { makeSky, HORIZON } from './sky.js';
+import { NPCs } from './npc.js';
 
 const $ = id => document.getElementById(id);
 
@@ -60,15 +62,23 @@ const audio = {
 // ---------- Renderer / scene ----------
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
-const SKY = '#9fd0f0';
-scene.background = new THREE.Color(SKY);
-scene.fog = new THREE.Fog(SKY, 90, 330);
-scene.add(new THREE.HemisphereLight('#ffffff', '#b8a07a', 1.05));
-const sun = new THREE.DirectionalLight('#fff3d6', 1.3);
-sun.position.set(80, 140, 50);
-scene.add(sun);
+scene.background = new THREE.Color(HORIZON);
+scene.fog = new THREE.Fog(HORIZON, 110, 360);
+scene.add(new THREE.HemisphereLight('#cfe6ff', '#b8a07a', 0.95));
+const sun = new THREE.DirectionalLight('#fff0cf', 2.0);
+const SUN_OFF = new THREE.Vector3(60, 100, 40);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+const sc = sun.shadow.camera; sc.left = -60; sc.right = 60; sc.top = 60; sc.bottom = -60; sc.near = 10; sc.far = 260;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.6;
+scene.add(sun); scene.add(sun.target);
+const sky = makeSky(scene);
 
 const camera = new THREE.PerspectiveCamera(62, 1, 0.5, 600);
 function resize() {
@@ -94,7 +104,7 @@ parked = parked.filter(c => {
 });
 // guaranteed starter car near the player
 {
-  const mesh = makeCar('#f1c40f');
+  const mesh = makeCar('#f1c40f', 'taxi');
   const sx = roadCoord(3) + 5.4, sz = player.z + 3;
   mesh.position.set(sx, 0, sz);
   scene.add(mesh);
@@ -108,6 +118,7 @@ function spawnTraffic(i) {
 }
 for (let i = 0; i < CFG.trafficCount; i++) traffic.push(spawnTraffic(i));
 
+const npcs = new NPCs(scene, 30);
 const missions = new Missions(scene, hud, audio);
 const miniBase = drawMinimapBase(264);
 const mini = $('minimap').getContext('2d');
@@ -204,6 +215,9 @@ function stepCar(dt) {
   car.x = clamp(car.x, -CFG.bounds, CFG.bounds);
   car.z = clamp(car.z, -CFG.bounds, CFG.bounds);
 
+  const braking = inp.brake || (inp.throttle < -0.05 && car.speed > 1);
+  for (const t of car.mesh.userData.tails || []) t.material.color.set(braking ? '#ff2a2a' : '#8a1111');
+  if ((inp.brake && Math.abs(car.speed) > 12) || (inp.throttle > 0.5 && car.speed < 4 && car.speed > 0.2)) emitSmoke(car, 2);
   car.mesh.position.set(car.x, 0, car.z);
   car.mesh.rotation.y = car.heading;
   for (const w of car.mesh.userData.wheels) w.rotation.x += car.speed * dt / 0.42;
@@ -215,6 +229,39 @@ function stepCar(dt) {
     // flip/unstick: nudge to nearest road lane centre
     car.speed = 0;
   }
+}
+
+function puffTex() {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 2, 32, 32, 30);
+  gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+// tire smoke particles
+const PN = 48;
+const pGeo = new THREE.BufferGeometry();
+const pPos = new Float32Array(PN * 3), pLife = new Float32Array(PN);
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+const pPts = new THREE.Points(pGeo, new THREE.PointsMaterial({ map: puffTex(), color: '#e4e4e4', size: 2.6, transparent: true, opacity: 0.4, depthWrite: false }));
+pPts.frustumCulled = false;
+scene.add(pPts);
+let pIdx = 0;
+for (let i = 0; i < PN; i++) pPos[i * 3 + 1] = -50;
+function emitSmoke(c, n) {
+  const f = fwd(c.heading);
+  for (let i = 0; i < n; i++) {
+    const k = pIdx++ % PN;
+    pPos[k * 3] = c.x - f.x * 1.8 + (Math.random() - 0.5) * 1.6;
+    pPos[k * 3 + 1] = 0.5; pPos[k * 3 + 2] = c.z - f.z * 1.8 + (Math.random() - 0.5) * 1.6;
+    pLife[k] = 1;
+  }
+}
+function updateSmoke(dt) {
+  for (let i = 0; i < PN; i++) {
+    if (pLife[i] > 0) { pLife[i] -= dt * 1.6; pPos[i * 3 + 1] += dt * 1.2; if (pLife[i] <= 0) pPos[i * 3 + 1] = -50; }
+  }
+  pGeo.attributes.position.needsUpdate = true;
 }
 
 function updateCamera(dt) {
@@ -282,6 +329,7 @@ function loop(now) {
       }
     }
 
+    npcs.update(dt, car, car ? car.x : player.x, car ? car.z : player.z);
     for (const t of traffic) t.update(dt, traffic, car ? car.x : player.x, car ? car.z : player.z, car);
     missions.update(dt, car ? car.x : player.x, car ? car.z : player.z, !!car);
 
@@ -300,10 +348,31 @@ function loop(now) {
   }
 
   updateCamera(dt);
+  updateSmoke(dt);
+  sky.update(dt, camera.position);
+  { const fx = car ? car.x : player.x, fz = car ? car.z : player.z;
+    sun.target.position.set(fx, 0, fz); sun.position.set(fx + SUN_OFF.x, SUN_OFF.y, fz + SUN_OFF.z); }
+  { const tf = car ? 62 + Math.min(14, Math.abs(car.speed) * 0.35) : 62; camera.fov += (tf - camera.fov) * 0.08; camera.updateProjectionMatrix(); }
+  perfCheck(dt);
   drawMini();
   renderer.render(scene, camera);
 }
 
+// adaptive quality: drop shadows if the device is struggling (skip with ?shadows=on)
+let perfT = 0, perfN = 0, perfDone = false;
+const FORCE = /shadows=on/.test(location.search);
+function perfCheck(dt) {
+  if (perfDone || FORCE || !started) return;
+  perfT += dt; perfN++;
+  if (perfT > 3) {
+    perfDone = true;
+    if (perfN / perfT < 28) {
+      renderer.shadowMap.enabled = false; sun.castShadow = false; renderer.setPixelRatio(1);
+      scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
+      window.__lowQuality = true;
+    }
+  }
+}
 camera.position.set(player.x, 7.5, player.z - 11);
 requestAnimationFrame(loop);
 
@@ -321,5 +390,11 @@ window.__game = {
   get state() { return { x: car ? car.x : player.x, z: car ? car.z : player.z, inCar: !!car, speed: car ? car.speed : 0, cash: missions.cash, mission: missions.state, frames }; },
   enterNearest() { const c = nearestCar(); if (c) enterCar(c); return !!c; },
   teleportToMarker() { const m = missions.markerPos(); if (m) { if (car) { car.x = m.x; car.z = m.z; } else { player.x = m.x; player.z = m.z; } } },
+  showcase() {
+    const types = ['sedan', 'taxi', 'suv', 'sports', 'pickup', 'microbus', 'hatch'];
+    const cols = ['#c0392b', '#f2c200', '#2c3e50', '#e67e22', '#27ae60', '#ecf0f1', '#8e44ad'];
+    types.forEach((t, i) => { const m = makeCar(cols[i], t); m.position.set(player.x - 15 + i * 5, 0, player.z + 16); m.rotation.y = 2.5; scene.add(m); });
+  },
+  toNpc() { const n = npcs.list[0]; player.x = n.x; player.z = n.z - 8; return [n.x, n.z]; },
   traffic, parked, scene, camera,
 };

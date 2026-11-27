@@ -7,16 +7,28 @@ const PALETTE = ['#e8dcc0', '#d9c9a8', '#cbb491', '#b7c4c9', '#e3e0d5', '#c97e52
 // one shared window texture drawn on a canvas
 function windowTexture() {
   const cv = document.createElement('canvas');
-  cv.width = 64; cv.height = 128;
+  cv.width = 128; cv.height = 256;
   const g = cv.getContext('2d');
-  g.fillStyle = '#ffffff'; g.fillRect(0, 0, 64, 128);
-  g.fillStyle = '#2c3a4a';
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, 128, 256);
+  g.fillStyle = 'rgba(0,0,0,0.07)';
+  for (let y = 0; y < 8; y++) g.fillRect(0, y * 32 + 29, 128, 3);   // floor lines
+  let seed = 3;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   for (let y = 0; y < 8; y++)
-    for (let x = 0; x < 3; x++)
-      g.fillRect(6 + x * 20, 8 + y * 15, 12, 9);
+    for (let x = 0; x < 3; x++) {
+      const wx = 10 + x * 40, wy = 6 + y * 32;
+      const lit = rnd() < 0.09;
+      const gr = g.createLinearGradient(0, wy, 0, wy + 20);
+      if (lit) { gr.addColorStop(0, '#d9c58a'); gr.addColorStop(1, '#b89a52'); }
+      else { gr.addColorStop(0, '#4a6a88'); gr.addColorStop(1, '#1f2e40'); }
+      g.fillStyle = gr; g.fillRect(wx, wy, 26, 20);
+      g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(wx, wy, 26, 2);
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(wx - 2, wy + 20, 30, 3);  // sill
+    }
   const tx = new THREE.CanvasTexture(cv);
   tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
   tx.colorSpace = THREE.SRGBColorSpace;
+  tx.anisotropy = 4;
   return tx;
 }
 
@@ -30,6 +42,7 @@ export function buildCity(scene) {
     new THREE.MeshLambertMaterial({ color: '#c9b083' })
   );
   ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
   scene.add(ground);
 
   // roads (two big cross strips per line)
@@ -61,8 +74,22 @@ export function buildCity(scene) {
       dashGeos.push(g2);
     }
   }
-  scene.add(new THREE.Mesh(mergeGeometries(roadGeos), roadMat));
+  const roadMesh = new THREE.Mesh(mergeGeometries(roadGeos), roadMat); roadMesh.receiveShadow = true; scene.add(roadMesh);
   scene.add(new THREE.Mesh(mergeGeometries(dashGeos), dashMat));
+
+  // zebra crossings at every intersection
+  const zebra = [];
+  for (let i = 0; i <= CFG.grid; i++)
+    for (let j = 0; j <= CFG.grid; j++) {
+      const cx = roadCoord(i), cz = roadCoord(j), o = CFG.road / 2 + 1.6;
+      for (let t = -5; t <= 5; t += 2) {
+        for (const sgn of [-1, 1]) {
+          const a = new THREE.BoxGeometry(0.9, 0.13, 2.6); a.translate(cx + t, 0.065, cz + sgn * o); zebra.push(a);
+          const b = new THREE.BoxGeometry(2.6, 0.13, 0.9); b.translate(cx + sgn * o, 0.065, cz + t); zebra.push(b);
+        }
+      }
+    }
+  scene.add(new THREE.Mesh(mergeGeometries(zebra), dashMat));
 
   // sidewalk slabs (merged)
   const walkMat = new THREE.MeshLambertMaterial({ color: '#b9b2a4' });
@@ -73,7 +100,7 @@ export function buildCity(scene) {
       g.translate(blockCoord(k), 0.17, blockCoord(l));
       walkGeos.push(g);
     }
-  scene.add(new THREE.Mesh(mergeGeometries(walkGeos), walkMat));
+  const walkMesh = new THREE.Mesh(mergeGeometries(walkGeos), walkMat); walkMesh.receiveShadow = true; scene.add(walkMesh);
 
   // buildings
   const winTex = windowTexture();
@@ -82,6 +109,8 @@ export function buildCity(scene) {
   const mats = PALETTE.map(c => new THREE.MeshLambertMaterial({ color: c }));
 
   const palmTrunks = [], palmLeaves = [];
+  const roofGeos = [], tankGeos = [];
+  const awn = ['#c0392b', '#2e86c1', '#27ae60', '#d68910'].map(() => []);
   const emptyBlocks = [];
   const rng = mulberry(7);
   for (let k = 0; k < CFG.grid; k++)
@@ -112,7 +141,14 @@ export function buildCity(scene) {
     const mesh = new THREE.Mesh(unitBox, m);
     mesh.scale.set(w, h, d);
     mesh.position.set(x, 0.3, z);
+    mesh.castShadow = true; mesh.receiveShadow = true;
     scene.add(mesh);
+    const cor = new THREE.BoxGeometry(w + 0.7, 0.55, d + 0.7); cor.translate(x, 0.3 + h + 0.27, z); roofGeos.push(cor);
+    const ac = new THREE.BoxGeometry(w * 0.3, 1.2, d * 0.28); ac.translate(x + (rng() - 0.5) * w * 0.4, 0.3 + h + 1.1, z + (rng() - 0.5) * d * 0.4); roofGeos.push(ac);
+    if (rng() < 0.45) { const tk = new THREE.CylinderGeometry(1.1, 1.1, 1.8, 10); tk.translate(x + (rng() - 0.5) * w * 0.5, 0.3 + h + 1.4, z + (rng() - 0.5) * d * 0.5); tankGeos.push(tk); }
+    const ai = Math.floor(rng() * 4);
+    const aw1 = new THREE.BoxGeometry(w * 0.75, 0.22, 1.3); aw1.translate(x, 3.6, z + d / 2 + 0.6); awn[ai].push(aw1);
+    const aw2 = new THREE.BoxGeometry(1.3, 0.22, d * 0.75); aw2.translate(x + w / 2 + 0.6, 3.6, z); awn[(ai + 1) % 4].push(aw2);
     colliders.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, h: h + 0.3 });
   }
 
@@ -135,9 +171,12 @@ export function buildCity(scene) {
   }
 
   if (palmTrunks.length) {
-    scene.add(new THREE.Mesh(mergeGeometries(palmTrunks), new THREE.MeshLambertMaterial({ color: '#7a5230' })));
-    scene.add(new THREE.Mesh(mergeGeometries(palmLeaves), new THREE.MeshLambertMaterial({ color: '#4e8f4a' })));
+    const t1 = new THREE.Mesh(mergeGeometries(palmTrunks), new THREE.MeshLambertMaterial({ color: '#7a5230' })); t1.castShadow = true; scene.add(t1);
+    const t2 = new THREE.Mesh(mergeGeometries(palmLeaves), new THREE.MeshLambertMaterial({ color: '#4e8f4a' })); t2.castShadow = true; scene.add(t2);
   }
+  const roofMesh = new THREE.Mesh(mergeGeometries(roofGeos), new THREE.MeshLambertMaterial({ color: '#8d8a84' })); roofMesh.castShadow = true; scene.add(roofMesh);
+  if (tankGeos.length) scene.add(new THREE.Mesh(mergeGeometries(tankGeos), new THREE.MeshLambertMaterial({ color: '#4a5560' })));
+  ['#c0392b', '#2e86c1', '#27ae60', '#d68910'].forEach((c, i) => { if (awn[i].length) { const am = new THREE.Mesh(mergeGeometries(awn[i]), new THREE.MeshLambertMaterial({ color: c })); am.castShadow = true; scene.add(am); } });
 
   // street lights at intersection corners
   const poleGeos = [], headGeos = [];
