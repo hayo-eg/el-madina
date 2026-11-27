@@ -167,7 +167,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(HORIZON);
 scene.fog = new THREE.Fog(HORIZON, 110, 420);
-scene.add(new THREE.HemisphereLight('#ffc4e4', '#6a4a8a', 1.0));
+scene.add(new THREE.HemisphereLight('#ffe3ee', '#6a5a80', 1.0));
 const sun = new THREE.DirectionalLight('#ffbf9a', 1.7);
 const SUN_OFF = new THREE.Vector3(55, 62, 95);
 sun.castShadow = !!S.shadows;
@@ -319,14 +319,15 @@ function setWeapon(i) {
   if (cur && gunGroup.userData[cur]) gunGroup.userData[cur].visible = !car;
   refreshWeaponHud();
 }
+function setIcon(el, k) { if (el.__k === k) return; el.__k = k; el.innerHTML = window.__ICONS[k]; }
 function refreshWeaponHud() {
   const w = WEAPONS[cur], el = $('weaponHud');
   el.style.display = cur ? 'block' : 'none';
   $('wName').textContent = w.name;
-  $('wAmmo').textContent = cur ? (wState[cur].reload > 0 ? 'جاري التعمير...' : wState[cur].ammo + ' / ∞') : 'اضغط Q أو سلاح';
+  $('wAmmo').textContent = cur ? (wState[cur].reload > 0 ? '...' : wState[cur].ammo + ' / ∞') : '';
   $('cross').style.display = (cur && !car) ? 'block' : 'none';
   $('btnFire').style.display = !car ? 'flex' : 'none';
-  $('btnFire').textContent = cur ? 'نار' : 'ضرب';
+  setIcon($('btnFire'), cur ? 'bullet' : 'fist');
 }
 function wantStars(n) {
   n = clamp(n, 0, 5);
@@ -836,7 +837,7 @@ function loop(now) {
     const pr = $('prompt');
     if (near) { pr.style.display = 'block'; pr.textContent = IS_TOUCH ? 'اضغط "اركب"' : 'اضغط E لركوب العربية'; } else pr.style.display = 'none';
     $('btnAction').style.display = (near || car) ? 'flex' : 'none';
-    $('btnAction').textContent = car ? 'انزل' : 'اركب';
+    setIcon($('btnAction'), car ? 'exit' : 'enter');
     $('btnBrake').style.display = car ? 'flex' : 'none';
     $('btnWeapon').style.display = car ? 'none' : 'flex';
     $('speed').style.display = car ? 'block' : 'none';
@@ -885,6 +886,9 @@ $('startBtn').addEventListener('click', () => {
   if (S.radio) { audio.radio(true); banner('♪ راديو ماينا FM ♪', '#ff7ac8', 2200); }
 });
 hud.mission('جاهز؟ اضغط ابدأ اللعب', '');
+$('startBtn').disabled = true;
+let warm = 0; const warmUp = () => { if (++warm >= 4) { $('startBtn').disabled = false; window.__loadDone && window.__loadDone(); } else requestAnimationFrame(warmUp); };
+renderer.compile(scene, camera); requestAnimationFrame(warmUp);
 if (saved.cash !== undefined) { $('saveInfo').textContent = 'تقدمك محفوظ · 💰 ' + (saved.cash || 0); $('startBtn').textContent = 'كمّل اللعب'; $('newBtn').style.display = 'inline-block'; }
 $('newBtn').addEventListener('click', () => { if (confirm('تمسح التقدم وتبدأ من الأول؟')) { localStorage.removeItem(SAVE_KEY); location.reload(); } });
 
