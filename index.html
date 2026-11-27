@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>المدينة | El Madina</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#0e1420; touch-action:none;
+    font-family:'Segoe UI', Tahoma, Arial, sans-serif; user-select:none; -webkit-user-select:none; }
+  #c { position:fixed; inset:0; display:block; }
+  .hud { position:fixed; z-index:10; color:#fff; pointer-events:none; }
+  #mission { top:calc(env(safe-area-inset-top,0px) + 10px); left:50%; transform:translateX(-50%);
+    background:rgba(10,16,28,.72); border:1px solid rgba(255,255,255,.15); border-radius:14px;
+    padding:8px 18px; font-size:17px; font-weight:700; text-align:center; max-width:92vw; line-height:1.5;
+    text-shadow:0 1px 3px rgba(0,0,0,.6); }
+  #mission small { display:block; font-size:12px; font-weight:400; color:#ffd166; }
+  #timerBar { width:100%; height:5px; background:rgba(255,255,255,.15); border-radius:3px; margin-top:6px; overflow:hidden; display:none; }
+  #timerFill { height:100%; width:100%; background:#ffd166; border-radius:3px; }
+  #cash { top:calc(env(safe-area-inset-top,0px) + 10px); right:12px; background:rgba(10,16,28,.72);
+    border:1px solid rgba(255,255,255,.15); border-radius:14px; padding:8px 14px; font-size:18px; font-weight:800; color:#7ee787; }
+  #mapWrap { top:calc(env(safe-area-inset-top,0px) + 10px); left:12px; width:132px; height:132px;
+    border-radius:14px; overflow:hidden; border:2px solid rgba(255,255,255,.25); background:#222;
+    box-shadow:0 2px 10px rgba(0,0,0,.5); }
+  #minimap { width:100%; height:100%; display:block; }
+  #speed { bottom:calc(env(safe-area-inset-bottom,0px) + 18px); right:16px; font-size:30px; font-weight:800;
+    text-shadow:0 2px 6px rgba(0,0,0,.7); display:none; }
+  #speed small { font-size:13px; font-weight:400; color:#ffd166; }
+  #hint { bottom:calc(env(safe-area-inset-bottom,0px) + 14px); left:50%; transform:translateX(-50%);
+    background:rgba(10,16,28,.66); border-radius:12px; padding:7px 14px; font-size:14px; color:#cfe3ff; white-space:nowrap; }
+  #prompt { bottom:calc(env(safe-area-inset-bottom,0px) + 62px); left:50%; transform:translateX(-50%);
+    background:#ffd166; color:#1a1a1a; border-radius:14px; padding:9px 20px; font-size:17px; font-weight:800; display:none; }
+  /* touch controls */
+  #touchUI { display:none; }
+  body.touch #touchUI { display:block; }
+  body.touch #hint { display:none; }
+  #stick { position:fixed; z-index:20; bottom:calc(env(safe-area-inset-bottom,0px) + 24px); left:22px;
+    width:128px; height:128px; border-radius:50%; background:rgba(255,255,255,.08);
+    border:2px solid rgba(255,255,255,.28); pointer-events:auto; }
+  #knob { position:absolute; left:50%; top:50%; width:54px; height:54px; border-radius:50%;
+    background:rgba(255,255,255,.4); border:2px solid rgba(255,255,255,.6); transform:translate(-50%,-50%); }
+  .tbtn { position:fixed; z-index:20; width:76px; height:76px; border-radius:50%; border:2px solid rgba(255,255,255,.4);
+    background:rgba(20,30,48,.75); color:#fff; font-size:15px; font-weight:800; pointer-events:auto;
+    display:flex; align-items:center; justify-content:center; text-align:center; font-family:inherit; }
+  .tbtn:active { background:rgba(255,209,102,.85); color:#111; }
+  #btnBrake { bottom:calc(env(safe-area-inset-bottom,0px) + 24px); right:22px; display:none; }
+  #btnAction { bottom:calc(env(safe-area-inset-bottom,0px) + 116px); right:30px; background:rgba(255,209,102,.85);
+    color:#111; display:none; }
+  /* start overlay */
+  #start { position:fixed; inset:0; z-index:50; background:radial-gradient(ellipse at 50% 30%, #1c2b47 0%, #0b1120 70%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; text-align:center; padding:24px; }
+  #start h1 { font-size:64px; font-weight:900; letter-spacing:1px; color:#ffd166; text-shadow:0 4px 24px rgba(255,209,102,.35); }
+  #start h2 { font-size:17px; font-weight:400; color:#9fb4d8; margin:10px 0 26px; line-height:1.8; }
+  #startBtn { pointer-events:auto; cursor:pointer; border:none; border-radius:18px; padding:16px 58px; font-size:24px;
+    font-weight:900; font-family:inherit; color:#14100a; background:linear-gradient(180deg,#ffd166,#f0a840);
+    box-shadow:0 6px 30px rgba(255,180,60,.45); }
+  #startBtn:active { transform:scale(.96); }
+  #start .keys { margin-top:26px; font-size:14px; color:#8fa3c8; line-height:2; }
+  #start .keys b { color:#e6eeff; background:rgba(255,255,255,.12); border-radius:6px; padding:2px 9px; margin:0 2px; }
+  #err { position:fixed; z-index:60; bottom:4px; left:4px; color:#f66; font-size:11px; max-width:90vw; display:none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="mission" class="hud"><span id="missionText">جاري التحميل...</span><div id="timerBar"><div id="timerFill"></div></div></div>
+<div id="cash" class="hud">💰 0</div>
+<div id="mapWrap" class="hud"><canvas id="minimap" width="264" height="264"></canvas></div>
+<div id="speed" class="hud">0 <small>كم/س</small></div>
+<div id="hint" class="hud">WASD حركة &nbsp;·&nbsp; E ركوب/نزول &nbsp;·&nbsp; مسافة فرامل &nbsp;·&nbsp; R تظبيط العربية</div>
+<div id="prompt" class="hud"></div>
+
+<div id="touchUI">
+  <div id="stick"><div id="knob"></div></div>
+  <button id="btnBrake" class="tbtn">فرامل</button>
+  <button id="btnAction" class="tbtn">اركب</button>
+</div>
+
+<div id="start">
+  <h1>المدينة</h1>
+  <h2>عالم مفتوح في شوارع مصرية: امشي، اركب أي عربية،<br>ووصّل الركاب قبل الوقت ما يخلص عشان تكسب 💰</h2>
+  <button id="startBtn">ابدأ اللعب</button>
+  <div class="keys">
+    <b>WASD</b> حركة &nbsp; <b>E</b> ركوب/نزول &nbsp; <b>مسافة</b> فرامل &nbsp; <b>R</b> تظبيط العربية<br>
+    على الموبايل: عصا التحكم شمال، والأزرار يمين
+  </div>
+</div>
+<div id="err"></div>
+
+<script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
+<script type="module" src="./js/main.js"></script>
+<script>
+  window.__errors = [];
+  window.addEventListener('error', function(e){
+    window.__errors.push(String(e.message || e.error));
+    var el = document.getElementById('err'); el.style.display='block';
+    el.textContent = 'ERR: ' + (e.message || e.error);
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    window.__errors.push('promise: ' + String(e.reason));
+  });
+  if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) document.body.classList.add('touch');
+</script>
+</body>
+</html>
