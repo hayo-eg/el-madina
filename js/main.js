@@ -9,6 +9,7 @@ import { makeSky, makeEnvMap, HORIZON } from './sky.js';
 import { NPCs } from './npc.js';
 import { Radar } from './radar.js';
 import { Police } from './police.js';
+import { Jobs, JOB_DEFS } from './jobs.js';
 import { S, buildSettingsUI } from './settings.js';
 
 const $ = id => document.getElementById(id);
@@ -240,8 +241,28 @@ function applyNpc() {
 }
 applyNpc();
 
+const SAVE_KEY = 'madina_save_v1';
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'); } catch (e) {}
+const owned = saved.owned || [true, true, false, false];
 const missions = new Missions(scene, hud, audio);
+missions.cash = saved.cash || 0; hud.cash(missions.cash);
+let saveJobsRef = null;
+function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ cash: missions.cash, owned, done: saveJobsRef ? saveJobsRef.done : {} })); } catch (e) {} }
+setInterval(saveGame, 8000);
+window.addEventListener('pagehide', saveGame);
 const police = new Police(scene, colliders);
+const jobs = new Jobs(scene, hud, {
+  saved, audio,
+  addCash(n) { missions.cash += n; hud.cash(missions.cash); },
+  wantStars(n) { wantStars(Math.max(stars, n)); },
+  banner(t, c, ms) { banner(t, c, ms); },
+  restore() { missions._banner(); missions.marker.visible = true; },
+  save: saveGame,
+  getCar() { return car; },
+  spawnCar(x, z, color, type) { const mesh = makeCar(color, type); mesh.position.set(x, 0, z); scene.add(mesh); const o = { mesh, x, z, heading: 0, speed: 0, parked: true, job: true }; parked.push(o); return o; },
+});
+saveJobsRef = jobs;
 const radar = new Radar($('minimap'), $('pmCanvas'), city.emptyBlocks);
 
 // ---------- State ----------
@@ -290,7 +311,9 @@ function updateSparks(dt) {
   }
 }
 function setWeapon(i) {
-  cur = clamp(i, 0, WEAPONS.length - 1);
+  i = clamp(i, 0, WEAPONS.length - 1);
+  if (!owned[i] && i > 0) { banner('اشتري السلاح ده من المتجر 📋', '#ffd166', 1500); i = 0; }
+  cur = i;
   gunGroup.children.forEach(g => g.visible = false);
   if (cur && gunGroup.userData[cur]) gunGroup.userData[cur].visible = !car;
   refreshWeaponHud();
@@ -407,6 +430,7 @@ function die(text, color, pct) {
   missions.cash -= lost; hud.cash(missions.cash);
 }
 function respawn() {
+  jobs.cancel('فشلت المهمة');
   police.clear(); stars = 0; evade = 0; bust = 0; refreshStars();
   hp = 100;
   if (car) {
@@ -663,12 +687,12 @@ let mapT = 0;
 function radarInfo() {
   return {
     x: car ? car.x : player.x, z: car ? car.z : player.z, heading: camYaw,
-    marker: missions.markerPos(), police: police.blips(),
+    marker: jobs.active ? jobs.markerPos() : missions.markerPos(), police: police.blips(),
   };
 }
 function openOverlay(id, on) {
   $(id).style.display = on ? 'flex' : 'none';
-  paused = $('settings').style.display === 'flex' || $('pauseMap').style.display === 'flex';
+  paused = $('settings').style.display === 'flex' || $('pauseMap').style.display === 'flex' || $('menu').style.display === 'flex';
   if (on && id === 'pauseMap') { const i = radarInfo(); i.heading = car ? car.heading : player.heading; radar.drawPause(i, gameT); }
 }
 $('btnGear').addEventListener('click', () => openOverlay('settings', true));
@@ -694,6 +718,51 @@ buildSettingsUI(key => {
 audio.vol = S.volume;
 $('spUnit').textContent = S.kmh ? 'كم/س' : 'ميل/س';
 
+// ---------- menu: missions / shop / progress ----------
+let menuTab = 'jobs';
+const SHOP = [
+  { id: 'w2', name: 'رشاش خفيف', desc: 'نار سريعة', price: 900, type: 'weapon', idx: 2 },
+  { id: 'w3', name: 'خرطوش', desc: 'قوة كبيرة من قريب', price: 1400, type: 'weapon', idx: 3 },
+  { id: 'hp', name: 'علاج كامل', desc: 'صحتك ترجع 100%', price: 150, type: 'heal' },
+];
+function renderMenu() {
+  $('menuCash').textContent = ' 💰 ' + missions.cash;
+  document.querySelectorAll('#menu .tab').forEach(b => b.classList.toggle('on', b.dataset.t === menuTab));
+  const body = $('menuBody'); body.innerHTML = '';
+  const card = (title, sub, label, fn, disabled) => {
+    const d = document.createElement('div'); d.className = 'card';
+    d.innerHTML = '<div class="t"><b></b><small></small></div>'; d.querySelector('b').textContent = title; d.querySelector('small').textContent = sub;
+    if (label) { const b = document.createElement('button'); b.textContent = label; b.disabled = !!disabled; b.addEventListener('click', fn); d.appendChild(b); }
+    body.appendChild(d);
+  };
+  if (menuTab === 'jobs') {
+    if (jobs.active) card('مهمة شغالة: ' + jobs.active.def.title, 'اكمل المهمة أو الغيها', 'إلغاء', () => { jobs.cancel('اتلغت المهمة'); renderMenu(); });
+    for (const d of JOB_DEFS) card(d.title, d.desc + ' · مكافأة ' + d.reward + ' · اتعملت ' + (jobs.done[d.id] || 0) + ' مرة', 'ابدأ', () => {
+      const P = { x: car ? car.x : player.x, z: car ? car.z : player.z };
+      if (jobs.start(d.id, P)) { openOverlay('menu', false); }
+    }, !!jobs.active);
+    card('توصيل ركاب (حر)', 'المهمة الأساسية: خد الركاب من العلامة الصفرا. شغالة لما مفيش مهمة تانية.', null);
+  } else if (menuTab === 'shop') {
+    for (const it of SHOP) {
+      const have = it.type === 'weapon' && owned[it.idx];
+      card(it.name, it.desc + (have ? ' · عندك' : ' · ' + it.price + ' 💰'), have ? 'ملكك' : 'اشتري', () => {
+        if (missions.cash < it.price) { banner('الفلوس مش كفاية', '#ff6b6b', 1200); return; }
+        missions.cash -= it.price; hud.cash(missions.cash);
+        if (it.type === 'weapon') { owned[it.idx] = true; banner('اشتريت ' + it.name, '#7ee787', 1200); } else { hp = 100; banner('اتعالجت', '#7ee787', 1200); }
+        saveGame(); renderMenu();
+      }, have || (missions.cash < it.price));
+    }
+  } else {
+    const n = Object.values(jobs.done).reduce((a, b) => a + b, 0);
+    card('الفلوس', missions.cash + ' 💰', null); card('مهام اتعملت', String(n), null);
+    card('أحسن رصيد ركاب', String(missions.best || 0), null);
+    card('الأسلحة', WEAPONS.map((w, i) => i && owned[i] ? w.name : '').filter(Boolean).join(' · ') || 'مفيش', null);
+  }
+}
+document.querySelectorAll('#menu .tab').forEach(b => b.addEventListener('click', () => { menuTab = b.dataset.t; renderMenu(); }));
+$('btnMenu').addEventListener('click', () => { if (started) { renderMenu(); openOverlay('menu', true); } });
+$('menuClose').addEventListener('click', () => openOverlay('menu', false));
+
 // ---------- Main loop ----------
 let last = performance.now();
 function loop(now) {
@@ -703,7 +772,8 @@ function loop(now) {
   frames++;
   if (controls.pressed('map') && started) openOverlay('pauseMap', $('pauseMap').style.display !== 'flex');
   if (controls.pressed('settings') && started) openOverlay('settings', $('settings').style.display !== 'flex');
-  if (controls.pressed('esc')) { openOverlay('settings', false); openOverlay('pauseMap', false); }
+  if (controls.pressed('menu') && started) { renderMenu(); openOverlay('menu', $('menu').style.display !== 'flex'); }
+  if (controls.pressed('esc')) { openOverlay('menu', false); openOverlay('settings', false); openOverlay('pauseMap', false); }
 
   if (started && !paused) {
     gameT += dt; crashCool -= dt;
@@ -739,7 +809,7 @@ function loop(now) {
     if (npcs.pendingHits > 0) { hurt(npcs.pendingHits); npcs.pendingHits = 0; }
     for (const n of npcs.list) if (n.crime) { n.crime = false; wantStars(Math.max(stars, 1)); }
     for (const t of traffic) t.update(dt, traffic, P.x, P.z, car);
-    missions.update(dt, P.x, P.z, !!car);
+    if (jobs.active) { missions.marker.visible = false; jobs.update(dt, P); } else missions.update(dt, P.x, P.z, !!car);
 
     // police
     const out = police.update(dt, P, stars, S.police);
@@ -813,6 +883,8 @@ $('startBtn').addEventListener('click', () => {
   if (S.radio) { audio.radio(true); banner('♪ راديو ماينا FM ♪', '#ff7ac8', 2200); }
 });
 hud.mission('جاهز؟ اضغط ابدأ اللعب', '');
+if (saved.cash !== undefined) { $('saveInfo').textContent = 'تقدمك محفوظ · 💰 ' + (saved.cash || 0); $('startBtn').textContent = 'كمّل اللعب'; $('newBtn').style.display = 'inline-block'; }
+$('newBtn').addEventListener('click', () => { if (confirm('تمسح التقدم وتبدأ من الأول؟')) { localStorage.removeItem(SAVE_KEY); location.reload(); } });
 
 // debug/test hooks
 window.__game = {
@@ -827,6 +899,6 @@ window.__game = {
   toNpc(d = 8, i = 0) { const n = npcs.list[i]; player.x = n.x - 2; player.z = n.z - d; return [n.x, n.z]; },
   lineup() { npcs.list.slice(0, 8).forEach((n, i) => { n.x = player.x - 7 + i * 2; n.z = player.z + 6; n.heading = Math.PI; n.idle = 99; n.mesh.position.set(n.x, 0.34, n.z); n.mesh.rotation.y = Math.PI; }); },
   setStars(n) { stars = 0; wantStars(n); },
-  setWeapon, police, openOverlay, shoot, punch, npcs, resolveCars, get car() { return car; }, setCam(y, p) { camYaw = y; camPitch = p; },
+  setPlayer(x, z) { if (car) { car.x = x; car.z = z; } else { player.x = x; player.z = z; player.syncMesh(); } }, jobs, startJob(id) { return jobs.start(id, { x: player.x, z: player.z }); }, saveGame, owned, setWeapon, police, openOverlay, shoot, punch, npcs, resolveCars, get car() { return car; }, setCam(y, p) { camYaw = y; camPitch = p; },
   traffic, parked, scene, camera,
 };

@@ -40,6 +40,7 @@
   #arFill { background:#4aa3ff; width:0%; }
   #btnGear, #btnFull { position:fixed; z-index:30; top:calc(var(--st) + 8px); width:clamp(30px,9vh,38px); height:clamp(30px,9vh,38px);
     border-radius:50%; background:rgba(20,30,48,.75); border:2px solid rgba(255,255,255,.4); color:#fff; font-size:19px; pointer-events:auto; }
+  #btnMenu { position:fixed; z-index:30; top:calc(var(--st) + 8px); width:clamp(30px,9vh,38px); height:clamp(30px,9vh,38px); border-radius:50%; background:rgba(20,30,48,.75); border:2px solid rgba(255,255,255,.4); color:#fff; font-size:17px; pointer-events:auto; left:calc(var(--sl) + var(--r) + 18px + (clamp(30px,9vh,38px) + 8px) * 2); }
   #btnGear { left:calc(var(--sl) + var(--r) + 18px); }
   #btnFull { left:calc(var(--sl) + var(--r) + 18px + clamp(30px,9vh,38px) + 8px); }
   #speed { bottom:calc(var(--sb) + 8px); right:calc(var(--sr) + var(--b) + 28px); font-size:clamp(20px,6vh,30px); font-weight:800;
@@ -80,6 +81,16 @@
   .row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.08); font-size:15px; }
   .row select, .row input[type=range] { background:#0e1420; color:#fff; border:1px solid rgba(255,255,255,.25); border-radius:8px; padding:5px 8px; font-family:inherit; font-size:14px; min-width:120px; }
   .row input[type=checkbox] { width:24px; height:24px; }
+  #menu .tabs { display:flex; gap:6px; margin-bottom:8px; }
+  #menu .tab { flex:1; background:#0e1420; color:#cfe3ff; border:1px solid rgba(255,255,255,.2); border-radius:10px; padding:7px 4px; font-family:inherit; font-size:14px; }
+  #menu .tab.on { background:#ffd166; color:#111; font-weight:800; }
+  .card { background:#0e1420; border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:9px 11px; margin-bottom:8px; display:flex; align-items:center; gap:10px; }
+  .card .t { flex:1; } .card .t b { display:block; font-size:15px; } .card .t small { color:#9fb4d8; font-size:12px; }
+  .card button { background:#ffd166; color:#111; border:none; border-radius:10px; padding:8px 14px; font-family:inherit; font-weight:800; font-size:14px; }
+  .card button:disabled { background:#444; color:#999; }
+  #menuCash { color:#7ee787; font-weight:800; font-size:15px; }
+  #newBtn { margin-top:12px; background:transparent; color:#9fb4d8; border:1px solid rgba(255,255,255,.25); border-radius:12px; padding:7px 20px; font-family:inherit; font-size:14px; cursor:pointer; pointer-events:auto; }
+  #saveInfo { color:#7ee787; font-size:14px; margin-bottom:10px; min-height:18px; }
   #pauseMap { background:rgba(8,14,24,.92); }
   #pmCanvas { width:min(88vh,92vw); height:min(88vh,92vw); border-radius:14px; border:3px solid rgba(255,255,255,.7); background:#9db4c8; }
   #pmLegend { position:fixed; bottom:12px; left:0; right:0; text-align:center; color:#cfe3ff; font-size:13px; }
@@ -105,7 +116,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">v5</div>
+<div id="ver">v6</div>
 <div id="rot"><b>⟳</b><div>لف الموبايل بالعرض عشان تلعب</div></div>
 
 <div id="mission" class="hud"><span id="missionText">جاري التحميل...</span><div id="timerBar"><div id="timerFill"></div></div></div>
@@ -113,7 +124,7 @@
 <div id="stars" class="hud"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
 <div id="weaponHud" class="hud"><span id="wName"></span><small id="wAmmo"></small></div>
 <div id="mapWrap" class="hud"><div id="radarRing"><canvas id="minimap" width="300" height="300"></canvas></div><div id="bars"><div><i id="hpFill"></i></div><div><i id="arFill"></i></div></div></div>
-<button id="btnGear" aria-label="settings">⚙</button><button id="btnFull" aria-label="fullscreen">⛶</button>
+<button id="btnGear" aria-label="settings">⚙</button><button id="btnFull" aria-label="fullscreen">⛶</button><button id="btnMenu" aria-label="menu">📋</button>
 <div id="speed" class="hud">0 <small id="spUnit">كم/س</small></div>
 <div id="hint" class="hud">WASD حركة · E ركوب/نزول · F أو كليك نار · كليك يمين+سحب: كاميرا · Q سلاح · R تعمير · Shift فرملة يد · M خريطة</div>
 <div id="prompt" class="hud"></div>
@@ -129,12 +140,13 @@
 </div>
 
 <div id="settings" class="ov"><div class="panel"><h3><span>الإعدادات</span><button class="xbtn" id="setClose">✕</button></h3><div id="settingsBody"></div></div></div>
+<div id="menu" class="ov"><div class="panel"><h3><span>القائمة <small id="menuCash"></small></span><button class="xbtn" id="menuClose">✕</button></h3><div class="tabs"><button class="tab on" data-t="jobs">المهام</button><button class="tab" data-t="shop">المتجر</button><button class="tab" data-t="stats">التقدم</button></div><div id="menuBody"></div></div></div>
 <div id="pauseMap" class="ov"><canvas id="pmCanvas" width="900" height="900"></canvas><button class="xbtn" id="pmClose">✕</button><div id="pmLegend"><span style='color:#6fa8ff'>▲ انت</span> · <span style='color:#ffd23f'>● المهمة</span> · <span style='color:#ff5b5b'>●</span><span style='color:#5b8cff'>●</span> بوليس</div></div>
 
 <div id="start">
   <h1>المدينة</h1>
   <h2>عالم مفتوح: امشي، شيل سلاحك، اركب أي عربية،<br>وصّل الركاب واهرب من البوليس 🚓</h2>
-  <button id="startBtn">ابدأ اللعب</button>
+  <div id="saveInfo"></div><button id="startBtn">ابدأ اللعب</button><button id="newBtn" style="display:none">لعبة جديدة (مسح التقدم)</button>
   <div class="keys">
     <b>WASD</b> حركة &nbsp; <b>E</b> ركوب/نزول &nbsp; <b>F</b> أو كليك: نار &nbsp; <b>Q / 1-2-3</b> سلاح &nbsp; <b>R</b> تعمير<br>
     <b>Space</b> فرامل &nbsp; <b>Shift</b> فرملة يد (دريفت) &nbsp; <b>M</b> خريطة &nbsp; <b>P</b> إعدادات<br>
@@ -143,10 +155,10 @@
 </div>
 <div id="err"></div>
 
-<script type="importmap">{ "imports": { "three": "./lib/three.module.min.js", "./js/config.js": "./js/config.js?v=5", "./js/controls.js": "./js/controls.js?v=5", "./js/missions.js": "./js/missions.js?v=5", "./js/player.js": "./js/player.js?v=5", "./js/vehicles.js": "./js/vehicles.js?v=5", "./js/world.js": "./js/world.js?v=5", "./js/sky.js": "./js/sky.js?v=5", "./js/npc.js": "./js/npc.js?v=5", "./js/settings.js": "./js/settings.js?v=5", "./js/radar.js": "./js/radar.js?v=5", "./js/police.js": "./js/police.js?v=5", "./js/main.js": "./js/main.js?v=5" } }</script>
+<script type="importmap">{ "imports": { "three": "./lib/three.module.min.js", "./js/config.js": "./js/config.js?v=6", "./js/controls.js": "./js/controls.js?v=6", "./js/missions.js": "./js/missions.js?v=6", "./js/player.js": "./js/player.js?v=6", "./js/vehicles.js": "./js/vehicles.js?v=6", "./js/world.js": "./js/world.js?v=6", "./js/sky.js": "./js/sky.js?v=6", "./js/npc.js": "./js/npc.js?v=6", "./js/settings.js": "./js/settings.js?v=6", "./js/radar.js": "./js/radar.js?v=6", "./js/police.js": "./js/police.js?v=6", "./js/main.js": "./js/main.js?v=6", "./js/jobs.js": "./js/jobs.js?v=6" } }</script>
 <script type="module" src="./js/main.js"></script>
 <script>
-  window.GAME_VERSION = '5';
+  window.GAME_VERSION = '6';
   fetch('./version.json?t=' + Date.now(), { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(j){
     if (String(j.v) !== window.GAME_VERSION && !sessionStorage.getItem('madina_reload_' + j.v)) { sessionStorage.setItem('madina_reload_' + j.v, '1'); location.replace(location.pathname + '?v=' + j.v + '&t=' + Date.now()); }
   }).catch(function(){});

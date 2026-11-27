@@ -12,7 +12,7 @@ export class Controls {
     window.addEventListener('keydown', e => {
       if (e.repeat) return;
       this.keys[e.code] = true;
-      const m = { KeyE: 'action', KeyR: 'reload', KeyQ: 'weapon', KeyM: 'map', KeyP: 'settings', Digit1: 'w1', Digit2: 'w2', Digit3: 'w3', Digit0: 'w0', Escape: 'esc', KeyH: 'reset' }[e.code];
+      const m = { KeyE: 'action', KeyR: 'reload', KeyQ: 'weapon', KeyM: 'map', KeyP: 'settings', KeyJ: 'menu', Digit1: 'w1', Digit2: 'w2', Digit3: 'w3', Digit0: 'w0', Escape: 'esc', KeyH: 'reset' }[e.code];
       if (m) E(m);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
     });

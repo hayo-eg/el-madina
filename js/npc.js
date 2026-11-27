@@ -163,7 +163,7 @@ export class NPCs {
   // gunshot / violence nearby: everyone close scatters
   alarm(x, z, r) {
     for (const n of this.list) {
-      if (n.down > 0) continue;
+      if (n.down > 0 || n.fight > 0) continue;
       if (Math.hypot(n.x - x, n.z - z) < r) { n.panic = Math.max(n.panic, 5 + Math.random() * 3); n.fight = 0; n.idle = 0; }
     }
   }
