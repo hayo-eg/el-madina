@@ -6,6 +6,8 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 const rnd = (a, b) => a + Math.random() * (b - a);
 const MC = {}, GC = {};
 const mat = c => (MC[c] || (MC[c] = new THREE.MeshLambertMaterial({ color: c })));
+const smat = c => (MC['s' + c] || (MC['s' + c] = new THREE.MeshStandardMaterial({ color: c, roughness: 0.62, metalness: 0 })));
+const fmat = c => (MC['f' + c] || (MC['f' + c] = new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, metalness: 0 })));
 function geo(key, fn) { return GC[key] || (GC[key] = fn()); }
 const cyl = (rt, rb, h, seg = 8, oy = 0) => { const g = new THREE.CylinderGeometry(rt, rb, h, seg); g.translate(0, oy, 0); return g; };
 
@@ -23,9 +25,9 @@ export function makePerson(opts) {
   const kind = opts.kind ? opts.kind : female ? (Math.random() < 0.55 ? 'abaya' : (Math.random() < 0.5 ? 'dress' : 'casual')) : (Math.random() < 0.2 ? 'galabeya' : 'casual');
   const hijab = female && Math.random() < 0.7 && !opts.kind;
   const long = kind === 'galabeya' || kind === 'abaya' || kind === 'dress';
-  const skin = mat(pick(SKINS));
-  const top = mat(kind === 'galabeya' ? pick(ROBES) : kind === 'abaya' ? pick(['#1a1a1a', '#26303d', '#3b2f3f']) : pick(TOPS));
-  const bottom = mat(pick(BOTTOMS));
+  const skin = smat(pick(SKINS));
+  const top = fmat(kind === 'galabeya' ? pick(ROBES) : kind === 'abaya' ? pick(['#1a1a1a', '#26303d', '#3b2f3f']) : pick(TOPS));
+  const bottom = fmat(pick(BOTTOMS));
   const shoe = mat(pick(SHOES));
   const longSleeves = long || Math.random() < 0.35;
   const sc = rnd(0.93, 1.07) * (female ? 0.95 : 1.0);
@@ -39,23 +41,35 @@ export function makePerson(opts) {
 
   // torso: tapered, slightly flattened front-to-back
   const torsoH = long ? 0.62 : 0.56;
-  const tor = add(geo('torso', () => cyl(0.2, 0.165, 0.56, 10, 0)), top, 0, 1.3, 0, body, true);
+  const tor = add(geo('torso', () => cyl(0.2, 0.165, 0.56, 16, 0)), top, 0, 1.3, 0, body, true);
   tor.scale.z = 0.62;
   if (female) tor.scale.x = 0.9;
-  const hips = add(geo('hips', () => cyl(0.17, 0.18, 0.2, 10, 0)), long ? top : bottom, 0, 0.97, 0, body, true);
+  const hips = add(geo('hips', () => cyl(0.17, 0.18, 0.2, 16, 0)), long ? top : bottom, 0, 0.97, 0, body, true);
   hips.scale.z = 0.66;
   if (long) {
-    const robe = add(geo('robe', () => cyl(0.18, 0.29, 0.86, 12, 0)), top, 0, 0.62, 0, body, true);
+    const robe = add(geo('robe', () => cyl(0.18, 0.29, 0.86, 18, 0)), top, 0, 0.62, 0, body, true);
     robe.scale.z = 0.8;
     robe.userData.robe = true;
   }
-  add(geo('neck', () => cyl(0.05, 0.055, 0.09, 8)), skin, 0, 1.6, 0);
+  if (!long) add(geo('belt', () => cyl(0.176, 0.176, 0.035, 16, 0)), mat('#2a2018'), 0, 1.04, 0, body);
+  add(geo('collar', () => new THREE.TorusGeometry(0.058, 0.014, 6, 14)), top, 0, 1.585, 0.0, body).rotation.x = Math.PI / 2;
+  add(geo('neck', () => cyl(0.052, 0.06, 0.1, 12)), skin, 0, 1.6, 0);
   // head
   const head = new THREE.Group(); head.position.set(0, 1.72, 0); body.add(head);
-  const face = add(geo('head', () => { const g = new THREE.SphereGeometry(0.112, 14, 12); g.scale(0.92, 1.12, 1.0); return g; }), skin, 0, 0, 0, head, true);
-  add(geo('nose', () => new THREE.BoxGeometry(0.025, 0.04, 0.03)), skin, 0, -0.01, 0.112, head);
-  for (const sx of [-1, 1]) add(geo('eye', () => new THREE.BoxGeometry(0.022, 0.014, 0.01)), mat('#1a1410'), sx * 0.04, 0.025, 0.1, head);
-  add(geo('mouth', () => new THREE.BoxGeometry(0.04, 0.008, 0.01)), mat('#8a4a44'), 0, -0.05, 0.103, head);
+  const face = add(geo('head', () => { const g = new THREE.SphereGeometry(0.112, 24, 18); g.scale(0.92, 1.12, 1.0); return g; }), skin, 0, 0, 0, head, true);
+  add(geo('nose', () => { const g = new THREE.ConeGeometry(0.02, 0.05, 6); g.rotateX(Math.PI / 2 * 0.0); g.rotateX(0.35); return g; }), skin, 0, -0.012, 0.114, head);
+  add(geo('nosetip', () => new THREE.SphereGeometry(0.017, 8, 6)), skin, 0, -0.03, 0.123, head);
+  for (const sx of [-1, 1]) {
+    const eye = add(geo('eyew', () => { const g = new THREE.SphereGeometry(0.0185, 10, 8); g.scale(1.25, 0.8, 0.5); return g; }), mat('#f4f1ea'), sx * 0.043, 0.024, 0.101, head);
+    add(geo('iris', () => new THREE.CircleGeometry(0.0095, 10)), mat('#2a1a10'), sx * 0.043, 0.024, 0.1085, head);
+    const brow = add(geo('brow', () => new THREE.BoxGeometry(0.05, 0.009, 0.012)), mat('#1c140f'), sx * 0.045, 0.057, 0.103, head);
+    brow.rotation.z = -sx * 0.12;
+    add(geo('lid', () => { const g = new THREE.SphereGeometry(0.02, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.45); g.scale(1.3, 0.8, 0.6); return g; }), skin, sx * 0.043, 0.027, 0.1, head);
+    add(geo('cheek', () => new THREE.SphereGeometry(0.03, 8, 6)), skin, sx * 0.062, -0.025, 0.088, head);
+  }
+  add(geo('lipU', () => { const g = new THREE.BoxGeometry(0.04, 0.008, 0.012); return g; }), mat('#a05a54'), 0, -0.048, 0.106, head);
+  add(geo('lipL', () => new THREE.BoxGeometry(0.034, 0.009, 0.012)), mat('#b36a62'), 0, -0.058, 0.104, head);
+  add(geo('chin', () => new THREE.SphereGeometry(0.03, 8, 6)), skin, 0, -0.082, 0.07, head);
   for (const sx of [-1, 1]) add(geo('ear', () => new THREE.SphereGeometry(0.02, 6, 6)), skin, sx * 0.1, 0, 0, head);
   if (hijab) {
     const hm = mat(pick(HIJABS));
@@ -78,10 +92,13 @@ export function makePerson(opts) {
     const sh = new THREE.Group(); sh.position.set(sx * 0.235, 1.5, 0); body.add(sh);
     const sleeve = longSleeves ? top : top;
     add(geo('shoulder', () => new THREE.SphereGeometry(0.055, 8, 8)), top, 0, 0, 0, sh);
-    add(geo('uarm', () => cyl(0.05, 0.043, 0.3, 8, -0.15)), sleeve, 0, 0, 0, sh, true);
+    add(geo('shoulder2', () => new THREE.SphereGeometry(0.054, 12, 10)), top, 0, 0, 0, sh);
+    add(geo('uarm', () => cyl(0.05, 0.043, 0.3, 14, -0.15)), sleeve, 0, 0, 0, sh, true);
     const el = new THREE.Group(); el.position.y = -0.3; sh.add(el);
-    add(geo('farm', () => cyl(0.043, 0.036, 0.27, 8, -0.135)), longSleeves ? top : skin, 0, 0, 0, el);
-    add(geo('hand', () => new THREE.SphereGeometry(0.04, 8, 8)), skin, 0, -0.29, 0, el);
+    add(geo('elbow', () => new THREE.SphereGeometry(0.043, 10, 8)), longSleeves ? top : skin, 0, 0, 0, el);
+    add(geo('farm', () => cyl(0.043, 0.036, 0.27, 14, -0.135)), longSleeves ? top : skin, 0, 0, 0, el);
+    add(geo('hand', () => { const g = new THREE.SphereGeometry(0.04, 12, 10); g.scale(0.85, 1.15, 0.6); return g; }), skin, 0, -0.295, 0, el);
+    add(geo('thumb', () => new THREE.CapsuleGeometry(0.011, 0.03, 3, 6)), skin, -sx * 0.026, -0.275, 0.012, el);
     return { sh, el };
   };
   const aL = mkArm(-1), aR = mkArm(1);
@@ -89,10 +106,12 @@ export function makePerson(opts) {
   // legs: hip pivot -> thigh -> knee pivot -> shin -> foot
   const mkLeg = sx => {
     const hp = new THREE.Group(); hp.position.set(sx * 0.09, 0.93, 0); body.add(hp);
-    add(geo('thigh', () => cyl(0.078, 0.06, 0.46, 8, -0.23)), bottom, 0, 0, 0, hp, true);
+    add(geo('thigh', () => cyl(0.078, 0.06, 0.46, 14, -0.23)), bottom, 0, 0, 0, hp, true);
     const kn = new THREE.Group(); kn.position.y = -0.46; hp.add(kn);
-    add(geo('shin', () => cyl(0.058, 0.045, 0.44, 8, -0.22)), long ? skin : bottom, 0, 0, 0, kn, true);
-    add(geo('foot', () => new THREE.BoxGeometry(0.1, 0.07, 0.27)), shoe, 0, -0.46, 0.05, kn);
+    add(geo('knee', () => new THREE.SphereGeometry(0.058, 10, 8)), long ? skin : bottom, 0, 0, 0, kn);
+    add(geo('shin', () => cyl(0.058, 0.045, 0.44, 14, -0.22)), long ? skin : bottom, 0, 0, 0, kn, true);
+    add(geo('foot', () => { const g = new THREE.CapsuleGeometry(0.045, 0.17, 4, 8); g.rotateX(Math.PI / 2); g.scale(1.0, 0.75, 1); return g; }), shoe, 0, -0.455, 0.06, kn);
+    add(geo('sole', () => new THREE.BoxGeometry(0.1, 0.02, 0.29)), mat('#e9e6df'), 0, -0.49, 0.06, kn);
     return { hp, kn };
   };
   const lL = mkLeg(-1), lR = mkLeg(1);
@@ -192,6 +211,7 @@ export class NPCs {
 
 // shared walk-cycle animation (used by the player too)
 export function animateWalk(u, p, amp, dt, still) {
+  const br = Math.sin(performance.now() / 750 + (u.seed || (u.seed = Math.random() * 6)));
   const s = Math.sin(p), c2 = Math.cos(p), k = still ? 0 : 1, f = Math.min(1, dt * 14);
   u.lL.hp.rotation.x += ((s * amp * k) - u.lL.hp.rotation.x) * f;
   u.lR.hp.rotation.x += ((-s * amp * k) - u.lR.hp.rotation.x) * f;
@@ -205,4 +225,8 @@ export function animateWalk(u, p, amp, dt, still) {
   u.body.position.y = Math.abs(s) * 0.03 * k;
   u.body.rotation.z = s * 0.025 * k;
   u.tor.rotation.y = s * 0.12 * k;
+  u.tor.scale.y = 1 + br * 0.014 * (1 - k);
+  if (still) { u.aL.sh.rotation.x += (br * 0.03 - u.aL.sh.rotation.x) * f * 0.3; u.head.rotation.y = Math.sin(performance.now() / 2300 + u.seed) * 0.25; }
+  else u.head.rotation.y *= 0.9;
+  u.head.rotation.x = k * 0.03;
 }
