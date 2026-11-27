@@ -1,4 +1,4 @@
-const DEF = { handling: 'realistic', steer: 1, camDist: 1, volume: 0.8, shadows: true, hiRes: false, npc: 'high', traffic: 'normal', police: 'normal', autoAim: true, kmh: true };
+const DEF = { handling: 'realistic', steer: 1, camDist: 1, volume: 0.8, shadows: true, hiRes: false, npc: 'high', traffic: 'normal', police: 'normal', autoAim: false, shoulder: false, radio: true, kmh: true };
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem('madina_settings') || '{}'); } catch (e) {}
 export const S = Object.assign({}, DEF, saved);
@@ -12,7 +12,9 @@ const ROWS = [
   ['police', 'صعوبة البوليس', 'select', [['easy', 'سهل'], ['normal', 'عادي'], ['hard', 'صعب']]],
   ['npc', 'عدد الناس', 'select', [['low', 'قليل'], ['normal', 'عادي'], ['high', 'كتير']]],
   ['traffic', 'كثافة العربيات', 'select', [['low', 'خفيف'], ['normal', 'عادي'], ['high', 'زحمة']]],
-  ['autoAim', 'مساعدة التصويب', 'check'],
+  ['autoAim', 'مساعدة التصويب (خفيفة)', 'check'],
+  ['shoulder', 'كاميرا فوق الكتف عند التصويب', 'check'],
+  ['radio', 'راديو (موسيقى الثمانينات)', 'check'],
   ['shadows', 'الظلال', 'check'],
   ['hiRes', 'دقة عالية (أبطأ)', 'check'],
   ['kmh', 'السرعة كم/س (إلغاء = ميل/س)', 'check'],

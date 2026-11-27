@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 
-export const HORIZON = '#d6e8f4';
+export const HORIZON = '#f59bb8';
 
 export function makeSky(scene) {
-  const sunDir = new THREE.Vector3(80, 140, 50).normalize();
+  const sunDir = new THREE.Vector3(60, 24, 110).normalize();
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
     uniforms: {
-      top: { value: new THREE.Color('#2f76c8') },
-      mid: { value: new THREE.Color('#7fb8ea') },
+      top: { value: new THREE.Color('#1c1a6e') },
+      mid: { value: new THREE.Color('#b5409d') },
       hor: { value: new THREE.Color(HORIZON) },
       sun: { value: sunDir },
     },
@@ -17,10 +17,18 @@ export function makeSky(scene) {
       void main(){
         vec3 d = normalize(vP);
         float h = max(d.y, 0.0);
-        vec3 c = mix(hor, mid, smoothstep(0.0, 0.25, h));
-        c = mix(c, top, smoothstep(0.2, 0.9, h));
+        vec3 c = mix(hor, mid, smoothstep(0.0, 0.22, h));
+        c = mix(c, top, smoothstep(0.18, 0.85, h));
+        // cyan haze band just above the horizon
+        c = mix(c, vec3(0.25, 0.85, 0.95), smoothstep(0.02, 0.07, d.y) * (1.0 - smoothstep(0.07, 0.14, d.y)) * 0.45);
         float s = max(dot(d, normalize(sun)), 0.0);
-        c += vec3(1.0, 0.92, 0.7) * (pow(s, 600.0) * 1.6 + pow(s, 12.0) * 0.18);
+        // retro striped sun disc
+        float disc = smoothstep(0.9965, 0.9975, s);
+        float stripe = step(0.5, fract(d.y * 90.0)) ;
+        float cut = (d.y < 0.18) ? mix(1.0, stripe, smoothstep(0.18, 0.04, d.y)) : 1.0;
+        vec3 sunC = mix(vec3(1.0, 0.85, 0.35), vec3(1.0, 0.3, 0.55), smoothstep(0.22, 0.02, d.y));
+        c = mix(c, sunC, disc * cut);
+        c += vec3(1.0, 0.45, 0.6) * (pow(s, 40.0) * 0.55 + pow(s, 6.0) * 0.18);
         gl_FragColor = vec4(c, 1.0);
       }`,
   });
@@ -30,7 +38,7 @@ export function makeSky(scene) {
   scene.add(dome);
 
   const clouds = new THREE.Group();
-  const cm = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.92, fog: false, depthWrite: false });
+  const cm = new THREE.MeshBasicMaterial({ color: '#ffb4dc', transparent: true, opacity: 0.55, fog: false, depthWrite: false });
   for (let i = 0; i < 14; i++) {
     const c = new THREE.Group();
     const n = 3 + Math.floor(Math.random() * 3);
@@ -61,7 +69,7 @@ export function makeEnvMap(renderer) {
   const g = new THREE.SphereGeometry(50, 16, 12);
   const col = [];
   const pos = g.attributes.position;
-  const top = new THREE.Color('#4f93e0'), hor = new THREE.Color(HORIZON), gr = new THREE.Color('#8c7a5c');
+  const top = new THREE.Color('#6a3fa8'), hor = new THREE.Color(HORIZON), gr = new THREE.Color('#6a4a7c');
   for (let i = 0; i < pos.count; i++) {
     const y = pos.getY(i) / 50;
     const c = y >= 0 ? hor.clone().lerp(top, Math.pow(y, 0.6)) : hor.clone().lerp(gr, Math.min(1, -y * 3));
@@ -69,8 +77,8 @@ export function makeEnvMap(renderer) {
   }
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   es.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
-  const sunMesh = new THREE.Mesh(new THREE.SphereGeometry(5, 8, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(8, 7, 5) }));
-  sunMesh.position.set(30, 35, 20); es.add(sunMesh);
+  const sunMesh = new THREE.Mesh(new THREE.SphereGeometry(5, 8, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(8, 4, 5) }));
+  sunMesh.position.set(25, 15, 45); es.add(sunMesh);
   const pm = new THREE.PMREMGenerator(renderer);
   const rt = pm.fromScene(es, 0.02);
   pm.dispose();

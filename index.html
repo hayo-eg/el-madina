@@ -6,28 +6,28 @@
 <title>المدينة | El Madina</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body { width:100%; height:100%; overflow:hidden; background:#0e1420; touch-action:none;
+  html,body { width:100%; height:100%; height:100dvh; overflow:hidden; background:#0e1420; touch-action:none;
     font-family:'Segoe UI', Tahoma, Arial, sans-serif; user-select:none; -webkit-user-select:none; }
   #c { position:fixed; inset:0; display:block; }
-  :root { --r: clamp(88px, 27vh, 150px); --b: clamp(54px, 16vh, 76px); --sl: env(safe-area-inset-left,0px); --sr: env(safe-area-inset-right,0px); --st: env(safe-area-inset-top,0px); --sb: env(safe-area-inset-bottom,0px); }
+  :root { --r: clamp(62px, 21vh, 112px); --b: clamp(42px, 13vh, 62px); --vh: 1vh; --sl: env(safe-area-inset-left,0px); --sr: env(safe-area-inset-right,0px); --st: env(safe-area-inset-top,0px); --sb: env(safe-area-inset-bottom,0px); }
   .hud { position:fixed; z-index:10; color:#fff; pointer-events:none; }
   #mission { top:calc(var(--st) + 8px); left:50%; transform:translateX(-50%);
     background:rgba(10,16,28,.72); border:1px solid rgba(255,255,255,.15); border-radius:14px;
-    padding:6px 14px; font-size:clamp(12px,3.4vh,16px); font-weight:700; text-align:center; max-width:36vw; line-height:1.5;
+    padding:4px 12px; font-size:clamp(11px,3.1vh,15px); font-weight:700; text-align:center; max-width:34vw; line-height:1.5;
     text-shadow:0 1px 3px rgba(0,0,0,.6); }
   #mission small { display:block; font-size:12px; font-weight:400; color:#ffd166; }
   #timerBar { width:100%; height:5px; background:rgba(255,255,255,.15); border-radius:3px; margin-top:6px; overflow:hidden; display:none; }
   #timerFill { height:100%; width:100%; background:#ffd166; border-radius:3px; }
   #cash { top:calc(var(--st) + 8px); right:calc(var(--sr) + 10px); background:rgba(10,16,28,.72);
     border:1px solid rgba(255,255,255,.15); border-radius:14px; padding:4px 12px; font-size:clamp(14px,4vh,18px); font-weight:800; color:#7ee787; }
-  #stars { top:calc(var(--st) + 44px); right:calc(var(--sr) + 10px); font-size:clamp(16px,5vh,24px); letter-spacing:2px; direction:ltr; text-shadow:0 1px 4px #000; }
+  #stars { top:calc(var(--st) + 42px); right:calc(var(--sr) + 10px); font-size:clamp(13px,4vh,20px); letter-spacing:1px; direction:ltr; text-shadow:0 1px 4px #000; }
   #stars span { color:rgba(255,255,255,.22); }
   #stars span.on { color:#ffd23f; }
   #stars.flash span.on { animation:fl .5s infinite alternate; }
   @keyframes fl { from { color:#ffd23f; } to { color:#ff4545; } }
-  #weaponHud { top:calc(var(--st) + 80px); right:calc(var(--sr) + 10px); background:rgba(10,16,28,.72); border-radius:12px;
-    padding:5px 12px; font-size:15px; font-weight:700; display:none; text-align:center; }
-  #weaponHud small { direction:ltr; display:block; font-size:11px; color:#ffd166; font-weight:400; }
+  #weaponHud { top:calc(var(--st) + 68px); right:calc(var(--sr) + 10px); background:rgba(10,16,28,.66); border-radius:10px;
+    padding:3px 9px; font-size:12px; font-weight:700; display:none; text-align:center; }
+  #weaponHud small { direction:ltr; display:block; font-size:10px; color:#ffd166; font-weight:400; }
   /* GTA-style round radar */
   #mapWrap { top:calc(var(--st) + 8px); left:calc(var(--sl) + 10px); width:var(--r); height:var(--r); pointer-events:auto; }
   #radarRing { position:absolute; inset:0; border-radius:50%; overflow:hidden; border:3px solid rgba(255,255,255,.85);
@@ -38,36 +38,39 @@
   #bars i { display:block; height:100%; width:100%; }
   #hpFill { background:#4fd36b; }
   #arFill { background:#4aa3ff; width:0%; }
-  #btnGear, #btnFull { position:fixed; z-index:30; top:calc(var(--st) + 8px); width:38px; height:38px;
+  #btnGear, #btnFull { position:fixed; z-index:30; top:calc(var(--st) + 8px); width:clamp(30px,9vh,38px); height:clamp(30px,9vh,38px);
     border-radius:50%; background:rgba(20,30,48,.75); border:2px solid rgba(255,255,255,.4); color:#fff; font-size:19px; pointer-events:auto; }
-  #btnGear { left:calc(var(--sl) + var(--r) + 22px); }
-  #btnFull { left:calc(var(--sl) + var(--r) + 68px); }
-  #speed { bottom:calc(var(--sb) + 8px); right:calc(var(--sr) + var(--b) + 40px); font-size:clamp(20px,6vh,30px); font-weight:800;
+  #btnGear { left:calc(var(--sl) + var(--r) + 18px); }
+  #btnFull { left:calc(var(--sl) + var(--r) + 18px + clamp(30px,9vh,38px) + 8px); }
+  #speed { bottom:calc(var(--sb) + 8px); right:calc(var(--sr) + var(--b) + 28px); font-size:clamp(20px,6vh,30px); font-weight:800;
     text-shadow:0 2px 6px rgba(0,0,0,.7); display:none; }
   #speed small { font-size:13px; font-weight:400; color:#ffd166; }
   #hint { bottom:calc(env(safe-area-inset-bottom,0px) + 14px); left:50%; transform:translateX(-50%);
     background:rgba(10,16,28,.66); border-radius:12px; padding:7px 14px; font-size:13px; color:#cfe3ff; white-space:nowrap; }
-  #prompt { bottom:calc(env(safe-area-inset-bottom,0px) + 62px); left:50%; transform:translateX(-50%);
-    background:#ffd166; color:#1a1a1a; border-radius:14px; padding:9px 20px; font-size:17px; font-weight:800; display:none; }
-  #cross { top:50%; left:50%; width:10px; height:10px; margin:-5px 0 0 -5px; border:2px solid rgba(255,255,255,.8); border-radius:50%; display:none; }
+  #prompt { bottom:calc(var(--sb) + 10px); left:50%; transform:translateX(-50%);
+    background:#ffd166; color:#1a1a1a; border-radius:12px; padding:4px 12px; font-size:clamp(11px,3.2vh,14px); font-weight:800; display:none; }
+  #cross { top:50%; left:50%; width:22px; height:22px; margin:-11px 0 0 -11px; display:none; }
+  #cross::before, #cross::after { content:''; position:absolute; background:rgba(255,255,255,.92); box-shadow:0 0 3px #000; }
+  #cross::before { left:10px; top:0; width:2px; height:22px; -webkit-mask:linear-gradient(#000 0 8px,transparent 8px 14px,#000 14px); mask:linear-gradient(#000 0 8px,transparent 8px 14px,#000 14px); }
+  #cross::after { top:10px; left:0; height:2px; width:22px; -webkit-mask:linear-gradient(90deg,#000 0 8px,transparent 8px 14px,#000 14px); mask:linear-gradient(90deg,#000 0 8px,transparent 8px 14px,#000 14px); }
   #banner { top:38%; left:0; right:0; text-align:center; font-size:56px; font-weight:900; display:none; text-shadow:0 4px 20px #000; letter-spacing:2px; }
   /* touch controls */
   #touchUI { display:none; }
   body.touch #touchUI { display:block; }
   body.touch #hint { display:none; }
-  #stick { position:fixed; z-index:20; bottom:calc(var(--sb) + 16px); left:calc(var(--sl) + 22px);
-    width:clamp(96px,30vh,128px); height:clamp(96px,30vh,128px); border-radius:50%; background:rgba(255,255,255,.08);
+  #stick { position:fixed; z-index:20; bottom:calc(var(--sb) + 10px); left:calc(var(--sl) + 14px);
+    width:clamp(84px,26vh,120px); height:clamp(84px,26vh,120px); border-radius:50%; background:rgba(255,255,255,.08);
     border:2px solid rgba(255,255,255,.28); pointer-events:auto; }
   #knob { position:absolute; left:50%; top:50%; width:42%; height:42%; border-radius:50%;
     background:rgba(255,255,255,.4); border:2px solid rgba(255,255,255,.6); transform:translate(-50%,-50%); }
   .tbtn { position:fixed; z-index:20; width:var(--b); height:var(--b); border-radius:50%; border:2px solid rgba(255,255,255,.4);
-    background:rgba(20,30,48,.75); color:#fff; font-size:15px; font-weight:800; pointer-events:auto;
+    background:rgba(20,30,48,.75); color:#fff; font-size:clamp(11px,3.4vh,14px); font-weight:800; pointer-events:auto;
     display:flex; align-items:center; justify-content:center; text-align:center; font-family:inherit; touch-action:none; }
   .tbtn:active, .tbtn.on { background:rgba(255,209,102,.85); color:#111; }
-  #btnBrake { bottom:calc(var(--sb) + 16px); right:calc(var(--sr) + 22px); display:none; }
-  #btnFire { bottom:calc(var(--sb) + 16px); right:calc(var(--sr) + 22px); width:calc(var(--b) * 1.15); height:calc(var(--b) * 1.15); background:rgba(214,69,69,.8); display:none; font-size:17px; }
-  #btnWeapon { bottom:calc(var(--sb) + 26px); right:calc(var(--sr) + var(--b) * 1.15 + 34px); width:calc(var(--b) * .75); height:calc(var(--b) * .75); font-size:13px; display:none; }
-  #btnAction { bottom:calc(var(--sb) + var(--b) * 1.25 + 28px); right:calc(var(--sr) + 30px); background:rgba(255,209,102,.85);
+  #btnBrake { bottom:calc(var(--sb) + 10px); right:calc(var(--sr) + 14px); display:none; }
+  #btnFire { bottom:calc(var(--sb) + 10px); right:calc(var(--sr) + 14px); width:calc(var(--b) * 1.15); height:calc(var(--b) * 1.15); background:rgba(214,69,69,.8); display:none; font-size:17px; }
+  #btnWeapon { bottom:calc(var(--sb) + 16px); right:calc(var(--sr) + var(--b) * 1.15 + 26px); width:calc(var(--b) * .75); height:calc(var(--b) * .75); font-size:13px; display:none; }
+  #btnAction { bottom:calc(var(--sb) + var(--b) * 1.2 + 20px); right:calc(var(--sr) + 18px); background:rgba(255,209,102,.85);
     color:#111; display:none; }
   /* overlays */
   .ov { position:fixed; inset:0; z-index:70; display:none; align-items:center; justify-content:center; background:rgba(5,9,16,.78); }
@@ -94,10 +97,16 @@
   #start .keys b { color:#e6eeff; background:rgba(255,255,255,.12); border-radius:6px; padding:2px 8px; margin:0 2px; }
   #err { position:fixed; z-index:90; bottom:4px; left:4px; color:#f66; font-size:11px; max-width:90vw; display:none; }
   body.hit::after { content:''; position:fixed; inset:0; z-index:15; pointer-events:none; box-shadow:inset 0 0 90px rgba(220,30,30,.55); }
+  #ver { position:fixed; z-index:95; right:6px; bottom:2px; font-size:10px; color:rgba(255,255,255,.55); pointer-events:none; direction:ltr; }
+  #rot { position:fixed; inset:0; z-index:100; background:#0b1120; color:#fff; display:none; flex-direction:column; align-items:center; justify-content:center; font-size:20px; text-align:center; gap:14px; padding:20px; }
+  #rot b { font-size:54px; }
+  @media (orientation:portrait) { body.touch #rot { display:flex; } }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
+<div id="ver">v4 · vice-style</div>
+<div id="rot"><b>⟳</b><div>لف الموبايل بالعرض عشان تلعب</div></div>
 
 <div id="mission" class="hud"><span id="missionText">جاري التحميل...</span><div id="timerBar"><div id="timerFill"></div></div></div>
 <div id="cash" class="hud">💰 0</div>
@@ -134,9 +143,13 @@
 </div>
 <div id="err"></div>
 
-<script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
+<script type="importmap">{ "imports": { "three": "./lib/three.module.min.js", "./js/config.js": "./js/config.js?v=4", "./js/controls.js": "./js/controls.js?v=4", "./js/missions.js": "./js/missions.js?v=4", "./js/player.js": "./js/player.js?v=4", "./js/vehicles.js": "./js/vehicles.js?v=4", "./js/world.js": "./js/world.js?v=4", "./js/sky.js": "./js/sky.js?v=4", "./js/npc.js": "./js/npc.js?v=4", "./js/settings.js": "./js/settings.js?v=4", "./js/radar.js": "./js/radar.js?v=4", "./js/police.js": "./js/police.js?v=4", "./js/main.js": "./js/main.js?v=4" } }</script>
 <script type="module" src="./js/main.js"></script>
 <script>
+  window.GAME_VERSION = '4';
+  fetch('./version.json?t=' + Date.now(), { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(j){
+    if (String(j.v) !== window.GAME_VERSION && !sessionStorage.getItem('madina_reload_' + j.v)) { sessionStorage.setItem('madina_reload_' + j.v, '1'); location.replace(location.pathname + '?v=' + j.v + '&t=' + Date.now()); }
+  }).catch(function(){});
   window.__errors = [];
   window.addEventListener('error', function(e){
     window.__errors.push(String(e.message || e.error));

@@ -41,6 +41,7 @@ const audio = {
     this.eng.connect(lp); lp.connect(this.engGain); this.engGain.connect(this.ctx.destination);
     this.eng.frequency.value = 50;
     this.eng.start();
+    this.fxInit();
   },
   tone(f, d, type = 'sine', v = 0.15, delay = 0) {
     if (!this.ctx) return;
@@ -54,9 +55,95 @@ const audio = {
   pickup() { this.tone(660, 0.12); this.tone(880, 0.18, 'sine', 0.15, 0.1); },
   success() { this.tone(523, 0.12); this.tone(659, 0.12, 'sine', 0.15, 0.1); this.tone(784, 0.25, 'sine', 0.15, 0.2); },
   fail() { this.tone(220, 0.3, 'square', 0.1); this.tone(160, 0.4, 'square', 0.1, 0.2); },
-  shot(k) { this.tone(k === 2 ? 70 : 140, 0.09, 'sawtooth', 0.16); this.tone(900, 0.04, 'square', 0.05); },
-  siren(on) {},
-  bump() { this.tone(90, 0.12, 'square', 0.12); },
+  fxInit() {
+    const c = this.ctx; if (!c || this.noise) return;
+    const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    this.noise = nb;
+    const len = Math.floor(c.sampleRate * 1.7), ib = c.createBuffer(2, len, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const x = ib.getChannelData(ch); for (let i = 0; i < len; i++) x[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.1); }
+    this.rev = c.createConvolver(); this.rev.buffer = ib;
+    const rg = c.createGain(); rg.gain.value = 0.42; this.rev.connect(rg); rg.connect(c.destination);
+    // siren
+    this.sir = c.createOscillator(); this.sir.type = 'triangle'; this.sirG = c.createGain(); this.sirG.gain.value = 0;
+    const lfo = c.createOscillator(); lfo.frequency.value = 0.9; const lg = c.createGain(); lg.gain.value = 260;
+    lfo.connect(lg); lg.connect(this.sir.frequency); this.sir.frequency.value = 820;
+    this.sir.connect(this.sirG); this.sirG.connect(c.destination); this.sir.start(); lfo.start();
+  },
+  nb(t, dur, o) {
+    const c = this.ctx; if (!c || !this.noise) return;
+    const s = c.createBufferSource(); s.buffer = this.noise; s.loop = true;
+    const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = o.hp || 20;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = o.lp || 12000;
+    const g = c.createGain(); const v = (o.g || 0.5) * this.vol;
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    s.connect(hp); hp.connect(lp); lp.connect(g); g.connect(c.destination);
+    if (o.rev) { const r = c.createGain(); r.gain.value = o.rev; g.connect(r); r.connect(this.rev); }
+    s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
+  },
+  th(t, f0, f1, dur, gain, type = 'sine') {
+    const c = this.ctx; if (!c) return;
+    const o = c.createOscillator(), g = c.createGain(); o.type = type;
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(gain * this.vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + dur + 0.02);
+  },
+  shot(k) {
+    const c = this.ctx; if (!c) return; this.fxInit();
+    const t = c.currentTime, r = 0.92 + Math.random() * 0.16;
+    if (k === 1) {        // pistol: sharp crack + mid body + short low thump + room tail
+      this.nb(t, 0.05, { hp: 1800, lp: 11000, g: 0.9, rev: 0.5 });
+      this.nb(t, 0.16, { hp: 250, lp: 2600 * r, g: 0.6, rev: 0.6 });
+      this.th(t, 190 * r, 55, 0.14, 0.9);
+      this.nb(t + 0.02, 0.55, { hp: 120, lp: 900, g: 0.22, rev: 1.2 });
+    } else if (k === 2) { // SMG: tighter, higher, quick
+      this.nb(t, 0.035, { hp: 2600, lp: 12000, g: 0.8, rev: 0.25 });
+      this.nb(t, 0.09, { hp: 400, lp: 3500 * r, g: 0.5, rev: 0.3 });
+      this.th(t, 260 * r, 95, 0.075, 0.65);
+      this.nb(t + 0.01, 0.28, { hp: 200, lp: 1200, g: 0.12, rev: 0.7 });
+    } else {              // shotgun: huge boom, long noise, deep thump, long tail
+      this.nb(t, 0.09, { hp: 900, lp: 9000, g: 1.0, rev: 0.6 });
+      this.nb(t, 0.32, { hp: 60, lp: 3200 * r, g: 0.95, rev: 0.9 });
+      this.th(t, 120 * r, 30, 0.34, 1.25);
+      this.nb(t + 0.03, 0.95, { hp: 60, lp: 700, g: 0.3, rev: 1.6 });
+      this.th(t + 0.34, 2400, 1800, 0.03, 0.08, 'square'); // shell click later
+    }
+  },
+  reload(k, dur) {
+    const c = this.ctx; if (!c) return; this.fxInit();
+    const t = c.currentTime;
+    this.nb(t + 0.02, 0.03, { hp: 3000, lp: 8000, g: 0.5 }); this.th(t + 0.02, 1500, 700, 0.04, 0.2, 'square');
+    this.nb(t + dur * 0.5, 0.05, { hp: 1200, lp: 5000, g: 0.35 }); this.th(t + dur * 0.5, 900, 400, 0.06, 0.18, 'square');
+    this.nb(t + dur - 0.08, 0.04, { hp: 2500, lp: 9000, g: 0.55 }); this.th(t + dur - 0.08, 1800, 600, 0.05, 0.25, 'square');
+    if (k === 3) { this.nb(t + dur * 0.75, 0.04, { hp: 2000, lp: 7000, g: 0.4 }); this.th(t + dur * 0.75, 1200, 500, 0.05, 0.2, 'square'); }
+  },
+  dry() { const c = this.ctx; if (!c) return; this.fxInit(); const t = c.currentTime; this.nb(t, 0.02, { hp: 3500, lp: 9000, g: 0.4 }); this.th(t, 1800, 900, 0.03, 0.15, 'square'); },
+  punch() { const c = this.ctx; if (!c) return; this.fxInit(); const t = c.currentTime; this.nb(t, 0.07, { hp: 80, lp: 700, g: 0.7 }); this.th(t, 140, 55, 0.12, 0.7); },
+  swing() { const c = this.ctx; if (!c) return; this.fxInit(); const t = c.currentTime; this.nb(t, 0.12, { hp: 600, lp: 2500, g: 0.12 }); },
+  radio(on) {
+    const c = this.ctx; if (!c) return; this.fxInit();
+    if (!on) { this.musicOn = false; clearInterval(this.mTimer); return; }
+    if (this.musicOn) return; this.musicOn = true;
+    const bpm = 104, step = 60 / bpm / 4, R = [55, 43.65, 65.41, 49];            // A1 F1 C2 G1
+    const chords = [[220, 261.63, 329.63], [174.61, 220, 261.63], [261.63, 329.63, 392], [196, 246.94, 293.66]];
+    this.mStep = 0; this.mNext = c.currentTime + 0.1;
+    const play = (t, n) => {
+      const bar = Math.floor(n / 16) % 4, s = n % 16, v = this.vol * 0.55;
+      const osc = (f, type, dur, g, lp) => { const o = c.createOscillator(), gg = c.createGain(), fl = c.createBiquadFilter(); o.type = type; o.frequency.value = f; fl.type = 'lowpass'; fl.frequency.value = lp; gg.gain.setValueAtTime(g * v, t); gg.gain.exponentialRampToValueAtTime(0.0008, t + dur); o.connect(fl); fl.connect(gg); gg.connect(c.destination); o.start(t); o.stop(t + dur + 0.02); };
+      if (s % 2 === 0 || s % 4 === 3) osc(R[bar] * (s % 8 === 6 ? 2 : 1), 'sawtooth', step * 1.8, 0.16, 500);
+      const ch = chords[bar]; const arp = [0, 1, 2, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 2, 1][s];
+      osc(ch[arp] * 2, 'square', step * 1.4, 0.06, 2600);
+      if (s === 0) { for (const f of ch) osc(f, 'triangle', step * 15, 0.045, 1200); }
+      if (s % 8 === 0) this.th(t, 130, 45, 0.18, 0.5 * v);
+      if (s % 8 === 4) this.nb(t, 0.14, { hp: 1200, lp: 7000, g: 0.28 * v, rev: 0.25 });
+      if (s % 2 === 0) this.nb(t, 0.03, { hp: 6000, lp: 12000, g: 0.1 * v });
+    };
+    this.mTimer = setInterval(() => {
+      while (this.mNext < c.currentTime + 0.2) { play(this.mNext, this.mStep++); this.mNext += step; }
+    }, 40);
+  },
+  siren(level) { if (!this.sirG) return; this.sirG.gain.value = level * 0.06 * this.vol; },
+  bump() { this.tone(90, 0.12, 'square', 0.12); const c = this.ctx; if (c) { this.fxInit(); this.nb(c.currentTime, 0.18, { hp: 120, lp: 1800, g: 0.5, rev: 0.2 }); this.th(c.currentTime, 110, 45, 0.16, 0.6); } },
   engine(speed, driving) {
     if (!this.ctx) return;
     this.engGain.gain.value = driving ? (0.05 + Math.min(0.06, Math.abs(speed) / 600)) * this.vol * 1.25 : 0;
@@ -73,15 +160,15 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPrefere
 function applyPixelRatio() { renderer.setPixelRatio(S.hiRes ? Math.min(window.devicePixelRatio || 1, 2) : Math.min(window.devicePixelRatio || 1, 1.5)); }
 applyPixelRatio();
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.25;
 renderer.shadowMap.enabled = !!S.shadows;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(HORIZON);
-scene.fog = new THREE.Fog(HORIZON, 110, 360);
-scene.add(new THREE.HemisphereLight('#cfe6ff', '#b8a07a', 0.95));
-const sun = new THREE.DirectionalLight('#fff0cf', 2.0);
-const SUN_OFF = new THREE.Vector3(60, 100, 40);
+scene.fog = new THREE.Fog(HORIZON, 90, 330);
+scene.add(new THREE.HemisphereLight('#ffc4e4', '#6a4a8a', 1.0));
+const sun = new THREE.DirectionalLight('#ffbf9a', 1.7);
+const SUN_OFF = new THREE.Vector3(55, 62, 95);
 sun.castShadow = !!S.shadows;
 sun.shadow.mapSize.set(1024, 1024);
 const sc = sun.shadow.camera; sc.left = -60; sc.right = 60; sc.top = 60; sc.bottom = -60; sc.near = 10; sc.far = 260;
@@ -93,14 +180,19 @@ scene.environmentIntensity = 0.9;
 
 const camera = new THREE.PerspectiveCamera(62, 1, 0.5, 600);
 function resize() {
-  const w = window.innerWidth, h = window.innerHeight;
+  const vv = window.visualViewport;
+  const w = Math.round(vv ? vv.width : window.innerWidth), h = Math.round(vv ? vv.height : window.innerHeight);
+  document.documentElement.style.setProperty('--vh', (h / 100) + 'px');
   renderer.setSize(w, h, false);
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  canvas.style.left = (vv ? vv.offsetLeft : 0) + 'px'; canvas.style.top = (vv ? vv.offsetTop : 0) + 'px'; canvas.style.right = 'auto'; canvas.style.bottom = 'auto';
   camera.aspect = w / h;
   // keep the vertical field of view comfortable on very wide phones (~2.2:1)
-  camera.userData.baseFov = w / h > 1.9 ? 56 : 62;
+  { const a = w / h; camera.userData.baseFov = clamp(2 * Math.atan(Math.tan(40 * Math.PI / 180) / a) * 180 / Math.PI, 38, 62); }
   camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 resize();
 
@@ -154,7 +246,7 @@ const radar = new Radar($('minimap'), $('pmCanvas'), city.emptyBlocks);
 
 // ---------- State ----------
 let car = null;
-let camYaw = 0, camPitch = 0.5, camOff = 0;
+let camYaw = 0, camPitch = 0.5, camOff = 0, shoulderOff = 0;
 let started = false, paused = false;
 let crashCool = 0;
 let hp = 100, hurtCool = 0, lastHurt = -99;
@@ -205,11 +297,12 @@ function setWeapon(i) {
 }
 function refreshWeaponHud() {
   const w = WEAPONS[cur], el = $('weaponHud');
-  el.style.display = 'block';
+  el.style.display = cur ? 'block' : 'none';
   $('wName').textContent = w.name;
   $('wAmmo').textContent = cur ? (wState[cur].reload > 0 ? 'جاري التعمير...' : wState[cur].ammo + ' / ∞') : 'اضغط Q أو سلاح';
   $('cross').style.display = (cur && !car) ? 'block' : 'none';
-  $('btnFire').style.display = (cur && !car) ? 'flex' : 'none';
+  $('btnFire').style.display = !car ? 'flex' : 'none';
+  $('btnFire').textContent = cur ? 'نار' : 'ضرب';
 }
 function wantStars(n) {
   n = clamp(n, 0, 5);
@@ -226,7 +319,7 @@ function banner(text, color = '#fff', ms = 1800) {
   clearTimeout(banner._t); banner._t = setTimeout(() => { b.style.display = 'none'; }, ms);
 }
 function aimDirection() {
-  // direction from player: camera forward, optionally snapped to the nearest target (auto aim)
+  // the crosshair is the screen centre = camera forward, so shots go along camera yaw
   let yaw = camYaw;
   if (S.autoAim) {
     let best = null, bd = 99;
@@ -235,41 +328,63 @@ function aimDirection() {
       const dx = t.x - player.x, dz = t.z - player.z, d = Math.hypot(dx, dz);
       if (d > 55) continue;
       let da = Math.atan2(dx, dz) - camYaw; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
-      if (Math.abs(da) < 0.4 && d < bd) { bd = d; best = Math.atan2(dx, dz); }
+      if (Math.abs(da) < 0.09 && d < bd) { bd = d; best = Math.atan2(dx, dz); }
     }
     if (best !== null) yaw = best;
   }
   return yaw;
 }
+const _v3 = new THREE.Vector3();
 function shoot() {
   const w = WEAPONS[cur], ws = wState[cur];
   if (!cur || car || ws.reload > 0 || fireCool > 0) return;
-  if (ws.ammo <= 0) { startReload(); return; }
+  if (ws.ammo <= 0) { audio.dry(); fireCool = 0.3; startReload(); return; }
   ws.ammo--; fireCool = w.cd;
-  const yaw = aimDirection(); aimYaw = yaw; aimT = 0.7;
-  const ox = player.x + Math.sin(yaw) * 0.6, oz = player.z + Math.cos(yaw) * 0.6;
-  audio.shot(w.kind);
+  const yaw = aimDirection(); aimYaw = yaw; aimT = 0.8;
+  const sy = Math.sin(yaw), cy = Math.cos(yaw);
+  const ox = player.x + sy * 0.6, oz = player.z + cy * 0.6;
+  camera.getWorldDirection(_v3);
+  const hl = Math.hypot(_v3.x, _v3.z) || 1, slope = _v3.y / hl;
+  audio.shot(cur);
+  camKick = Math.min(0.05, camKick + 0.012 * (cur === 3 ? 3 : 1));
   for (let p = 0; p < w.pellets; p++) {
     const a = yaw + (Math.random() - 0.5) * 2 * w.spread;
     const dx = Math.sin(a), dz = Math.cos(a);
     const t = police.target(ox, oz, dx, dz, w.range, npcs.list);
     const dist = t ? t.dist : w.range;
-    police.tracer(ox, 1.25, oz, ox + dx * dist, 1.1, oz + dz * dist);
+    const camAlong = (ox - camera.position.x) * sy + (oz - camera.position.z) * cy;
+    const ey = clamp(camera.position.y + slope * (camAlong + dist), 0.25, 3.5);
+    police.tracer(ox, 1.25, oz, ox + dx * dist, t ? clamp(ey, 0.4, 1.7) : ey, oz + dz * dist);
     if (t) {
-      spark(ox + dx * dist, 1.1, oz + dz * dist);
-      if (t.kind === 'npc') { t.obj.down = 2.6; wantStars(Math.max(stars, 1)); }
-      else if (t.kind === 'officer') { t.obj.hp -= w.dmg; wantStars(Math.max(stars, 2)); if (t.obj.hp <= 0) wantStars(stars + 1); }
+      spark(ox + dx * dist, clamp(ey, 0.4, 1.7), oz + dz * dist);
+      if (t.kind === 'npc') npcs.hit(t.obj, w.dmg * (w.pellets > 1 ? 1.4 : 1.5));
+      else if (t.kind === 'officer') { t.obj.hp -= w.dmg; t.obj.barT = 3.5; wantStars(Math.max(stars, 2)); if (t.obj.hp <= 0) wantStars(stars + 1); }
       else if (t.kind === 'pcar') { t.obj.hp -= w.dmg; wantStars(Math.max(stars, 2)); }
     }
   }
-  const f = fwd(yaw); player.heading = yaw; player.syncMesh();
+  player.heading = yaw; player.syncMesh();
   if (ws.ammo <= 0) startReload();
   refreshWeaponHud();
+}
+let punchT = 0, punchCool = 0, camKick = 0;
+function punch() {
+  if (punchCool > 0 || car) return;
+  punchCool = 0.5; punchT = 0.32;
+  const yaw = camYaw; aimYaw = yaw; aimT = 0.5;
+  player.heading = yaw; player.syncMesh();
+  audio.swing();
+  const ox = player.x, oz = player.z, dx = Math.sin(yaw), dz = Math.cos(yaw);
+  const t = police.target(ox + dx * 0.2, oz + dz * 0.2, dx, dz, 2.2, npcs.list);
+  if (t) {
+    audio.punch(); spark(ox + dx * t.dist, 1.3, oz + dz * t.dist, '#fff2b0');
+    if (t.kind === 'npc') npcs.hit(t.obj, 22);
+    else if (t.kind === 'officer') { t.obj.hp -= 20; t.obj.barT = 3.5; wantStars(Math.max(stars, 2)); if (t.obj.hp <= 0) wantStars(stars + 1); }
+  }
 }
 function startReload() {
   const ws = wState[cur];
   if (!cur || ws.reload > 0 || ws.ammo >= WEAPONS[cur].mag) return;
-  ws.reload = cur === 3 ? 1.6 : 1.2; refreshWeaponHud();
+  ws.reload = cur === 3 ? 1.6 : 1.2; audio.reload(cur, ws.reload); refreshWeaponHud();
 }
 function updateWeapons(dt) {
   fireCool -= dt; aimT -= dt;
@@ -440,6 +555,52 @@ function updateSmoke(dt) {
   pGeo.attributes.position.needsUpdate = true;
 }
 
+// ---------- car vs car collisions ----------
+function carVel(o) { if (o === car) return { x: car.vx, z: car.vz }; const f = fwd(o.heading), s = o.speed || 0; return { x: f.x * s, z: f.z * s }; }
+function resolveCars() {
+  const list = [];
+  if (car) list.push(car);
+  for (const t of traffic) list.push(t);
+  for (const c of police.cars) list.push(c);
+  for (const p of parked) list.push(p);
+  for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+    const a = list[i], b = list[j];
+    if (a.parked && b.parked) continue;
+    if (Math.abs(a.x - b.x) > 6.4 || Math.abs(a.z - b.z) > 6.4) continue;
+    const fa = fwd(a.heading), fb = fwd(b.heading);
+    let best = 0, nx = 0, nz = 0;
+    for (const oa of [1.3, -1.3]) for (const ob of [1.3, -1.3]) {
+      const ax = a.x + fa.x * oa, az = a.z + fa.z * oa, bx = b.x + fb.x * ob, bz = b.z + fb.z * ob;
+      const d = Math.hypot(ax - bx, az - bz), ov = 2.5 - d;
+      if (ov > best) { best = ov; nx = d > 0.001 ? (ax - bx) / d : 1; nz = d > 0.001 ? (az - bz) / d : 0; }
+    }
+    if (best <= 0) continue;
+    const am = !a.parked, bm = !b.parked;
+    const sa = am && bm ? 0.5 : am ? 1 : 0, sb = am && bm ? 0.5 : bm ? 1 : 0;
+    a.x += nx * best * sa; a.z += nz * best * sa; b.x -= nx * best * sb; b.z -= nz * best * sb;
+    const va = carVel(a), vb = carVel(b);
+    const vrel = (va.x - vb.x) * nx + (va.z - vb.z) * nz;
+    if (vrel >= 0) continue;
+    const imp = -vrel, jj = imp * 1.35;
+    const kick = (o, sx, sgn) => {
+      if (o.parked) return;
+      if (o === car) { car.vx += nx * jj * sx * sgn; car.vz += nz * jj * sx * sgn; car.speed *= 0.7; }
+      else { o.speed *= 0.4; o.stopTimer = 0.7; o.heading += sgn * (Math.random() - 0.5) * 0.4; }
+    };
+    kick(a, Math.max(sa, 0.6), 1); kick(b, Math.max(sb, 0.6), -1);
+    if (imp > 5) {
+      const mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2;
+      spark(mx, 0.9, mz, '#ffe08a');
+      if (crashCool <= 0) { audio.bump(); crashCool = 0.3; }
+      if (a === car || b === car) { hurt(imp * 0.32); camKick = Math.min(0.05, camKick + 0.02); }
+      for (const o of [a, b]) {
+        if (o.police && o.hp > 0) { o.hp -= imp * 3.2; if (a === car || b === car) wantStars(Math.max(stars, 2)); }
+      }
+    }
+  }
+  if (car) { car.mesh.position.set(car.x, 0, car.z); }
+}
+
 // ---------- Camera (free orbit) ----------
 function updateCamera(dt) {
   const L = controls.look();
@@ -456,16 +617,44 @@ function updateCamera(dt) {
       camPitch = clamp(camPitch + L.y * 0.0045, 0.1, 1.15);
     }
   }
-  const tx = car ? car.x : player.x, tz = car ? car.z : player.z;
+  shoulderOff += (((S.shoulder && cur && !car) ? 1.05 : 0) - shoulderOff) * Math.min(1, dt * 6);
+  camKick *= Math.exp(-9 * dt);
+  const tx = (car ? car.x : player.x) - Math.cos(camYaw) * shoulderOff, tz = (car ? car.z : player.z) + Math.sin(camYaw) * shoulderOff;
   const fk = 1 - Math.exp(-(car ? 14 : 12) * dt);
   focus.x += (tx - focus.x) * fk; focus.z += (tz - focus.z) * fk;
   const dist = (car ? 9.5 + Math.abs(car.speed) * 0.07 : 8.2) * S.camDist;
   const cp = Math.cos(camPitch), sp = Math.sin(camPitch);
   const fy = car ? 1.3 : 1.35;
-  const wantY = Math.max(0.9, fy + sp * dist);
+  const wantY = Math.max(0.9, fy + sp * dist) + camKick * 12;
   camera.position.set(focus.x - Math.sin(camYaw) * cp * dist, wantY, focus.z - Math.cos(camYaw) * cp * dist);
   const ahead = car ? 4 : 2.5;
-  camera.lookAt(focus.x + Math.sin(camYaw) * ahead, fy, focus.z + Math.cos(camYaw) * ahead);
+  camera.lookAt(focus.x + Math.sin(camYaw) * ahead, fy - (car ? 0.2 : 0.55), focus.z + Math.cos(camYaw) * ahead);
+}
+
+// ---------- floating HP bars ----------
+const barPool = [];
+function getBar(i) {
+  if (barPool[i]) return barPool[i];
+  const bg = new THREE.Sprite(new THREE.SpriteMaterial({ color: '#000000', depthTest: false, transparent: true, opacity: 0.7 }));
+  const fg = new THREE.Sprite(new THREE.SpriteMaterial({ color: '#4fd36b', depthTest: false, transparent: true }));
+  bg.scale.set(0.95, 0.13, 1); fg.scale.set(0.87, 0.07, 1); bg.renderOrder = 998; fg.renderOrder = 999;
+  scene.add(bg); scene.add(fg); bg.visible = fg.visible = false;
+  return (barPool[i] = { bg, fg });
+}
+function updateBars() {
+  let k = 0;
+  const each = o => {
+    if (o.barT > 0 && o.hp > 0 && k < 10) {
+      const b = getBar(k++), r = clamp(o.hp / (o.hpMax || 100), 0, 1);
+      const y = 2.25;
+      b.bg.position.set(o.x, y, o.z); b.fg.position.set(o.x, y, o.z);
+      b.fg.scale.x = 0.87 * Math.max(0.02, r); b.fg.material.color.set(r > 0.5 ? '#4fd36b' : r > 0.25 ? '#ffd23f' : '#ff4545');
+      b.bg.visible = b.fg.visible = true;
+    }
+  };
+  npcs.list.forEach(each);
+  police.officers.forEach(o => { if (o.barT === undefined) { o.hpMax = 60; o.barT = 0; } o.barT -= 0.016; each(o); });
+  for (let i = k; i < barPool.length; i++) barPool[i].bg.visible = barPool[i].fg.visible = false;
 }
 
 // ---------- HUD / overlays ----------
@@ -496,6 +685,7 @@ buildSettingsUI(key => {
   if (key === 'shadows') { renderer.shadowMap.enabled = !!S.shadows; sun.castShadow = !!S.shadows; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); perfDone = true; }
   if (key === 'hiRes') applyPixelRatio();
   if (key === 'volume') audio.vol = S.volume;
+  if (key === 'radio') audio.radio(S.radio);
   if (key === 'npc') applyNpc();
   if (key === 'traffic') applyTraffic();
   if (key === 'kmh') $('spUnit').textContent = S.kmh ? 'كم/س' : 'ميل/س';
@@ -518,7 +708,8 @@ function loop(now) {
     gameT += dt; crashCool -= dt;
     const px = car ? car.x : player.x, pz = car ? car.z : player.z;
     if (dead > 0) {
-      dead -= dt; if (dead <= 0) respawn();
+      dead -= dt; if (!car) { player.mesh.rotation.x = -Math.PI / 2 * Math.min(1, (2.8 - dead) * 5); player.mesh.position.y = 0.45; }
+      if (dead <= 0) { player.mesh.rotation.x = 0; respawn(); }
     } else {
       // weapon keys
       if (controls.pressed('weapon')) setWeapon((cur + 1) % WEAPONS.length);
@@ -532,26 +723,28 @@ function loop(now) {
         const sy = Math.sin(camYaw), cy = Math.cos(camYaw);
         player.update(dt, f.z * sy - f.x * cy, f.z * cy + f.x * sy, colliders);
         if (controls.actionPressed()) { const c = nearestCar(); if (c) enterCar(c); }
-        if (cur && controls.fire() && (WEAPONS[cur].auto || !shoot._held)) shoot();
+        if (cur) { if (controls.fire() && (WEAPONS[cur].auto || !shoot._held)) shoot(); }
+        else if (controls.fire() && !shoot._held) punch();
         shoot._held = controls.fire();
-        if (aimT > 0 && cur) { player.heading = aimYaw; player.syncMesh(); }
+        if (aimT > 0) { player.heading = aimYaw; player.syncMesh(); }
+        punchCool -= dt;
+        if (punchT > 0) { punchT -= dt; const u = player.mesh.userData, k = Math.sin(Math.PI * (1 - Math.max(0, punchT) / 0.32)); u.aR.sh.rotation.x = -1.55 * k; u.aR.el.rotation.x = -0.1 - 0.2 * k; u.tor.rotation.y = -0.35 * k; }
       }
       updateWeapons(dt);
     }
 
     const P = { x: car ? car.x : player.x, z: car ? car.z : player.z, car, onFoot: !car };
     npcs.update(dt, car, P.x, P.z);
-    for (const n of npcs.list) {
-      if (n.down > 2.4 && !n.flag) { n.flag = true; if (car && Math.abs(car.speed) > 5) wantStars(Math.max(stars, 1)); }
-      if (n.down <= 0) n.flag = false;
-    }
+    for (const n of npcs.list) if (n.crime) { n.crime = false; wantStars(Math.max(stars, 1)); }
     for (const t of traffic) t.update(dt, traffic, P.x, P.z, car);
     missions.update(dt, P.x, P.z, !!car);
 
     // police
     const out = police.update(dt, P, stars, S.police);
+    resolveCars();
     if (out.hurt && dead <= 0) hurt(out.hurt);
     if (out.bump) audio.bump();
+    audio.siren(stars > 0 && out.nearCar < 70 ? 1 - out.nearCar / 70 : 0);
     if (stars > 0 && dead <= 0) {
       const close = out.nearCar < 48 || police.officers.some(o => o.hp > 0 && Math.hypot(o.x - P.x, o.z - P.z) < 48);
       if (close) evade = 0; else evade += dt;
@@ -581,7 +774,7 @@ function loop(now) {
   }
 
   updateCamera(dt);
-  if (!paused) { updateSmoke(dt); updateSparks(dt); }
+  if (!paused) { updateSmoke(dt); updateSparks(dt); updateBars(); }
   sky.update(dt, camera.position);
   { const fx = car ? car.x : player.x, fz = car ? car.z : player.z;
     sun.target.position.set(fx, 0, fz); sun.position.set(fx + SUN_OFF.x, SUN_OFF.y, fz + SUN_OFF.z); }
@@ -615,6 +808,7 @@ $('startBtn').addEventListener('click', () => {
   $('start').style.display = 'none';
   started = true;
   missions._banner();
+  if (S.radio) { audio.radio(true); banner('♪ راديو ماينا FM ♪', '#ff7ac8', 2200); }
 });
 hud.mission('جاهز؟ اضغط ابدأ اللعب', '');
 
@@ -631,6 +825,6 @@ window.__game = {
   toNpc(d = 8, i = 0) { const n = npcs.list[i]; player.x = n.x - 2; player.z = n.z - d; return [n.x, n.z]; },
   lineup() { npcs.list.slice(0, 8).forEach((n, i) => { n.x = player.x - 7 + i * 2; n.z = player.z + 6; n.heading = Math.PI; n.idle = 99; n.mesh.position.set(n.x, 0.34, n.z); n.mesh.rotation.y = Math.PI; }); },
   setStars(n) { stars = 0; wantStars(n); },
-  setWeapon, police, openOverlay, shoot, setCam(y, p) { camYaw = y; camPitch = p; },
+  setWeapon, police, openOverlay, shoot, punch, npcs, resolveCars, get car() { return car; }, setCam(y, p) { camYaw = y; camPitch = p; },
   traffic, parked, scene, camera,
 };

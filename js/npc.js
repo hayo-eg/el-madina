@@ -12,7 +12,7 @@ function geo(key, fn) { return GC[key] || (GC[key] = fn()); }
 const cyl = (rt, rb, h, seg = 8, oy = 0) => { const g = new THREE.CylinderGeometry(rt, rb, h, seg); g.translate(0, oy, 0); return g; };
 
 const SKINS = ['#f1c7a1', '#e0ac7e', '#c68b5c', '#a26a45', '#7a4b30'];
-const TOPS = ['#c0392b', '#2e6fb5', '#2f8f5b', '#e0a030', '#f2f2ee', '#34495e', '#8e5ba6', '#d9d4c7', '#e67e22', '#1f2a3a', '#7f8c8d', '#b84a62'];
+const TOPS = ['#ff8fb8', '#5fd6d0', '#f7f1de', '#ffd36b', '#8be0a0', '#ff6f91', '#7dd3fc', '#c0392b', '#2e6fb5', '#2f8f5b', '#e0a030', '#f2f2ee', '#34495e', '#8e5ba6', '#d9d4c7', '#e67e22', '#1f2a3a', '#7f8c8d', '#b84a62'];
 const BOTTOMS = ['#26314a', '#3d3a36', '#5a4632', '#1f2a3a', '#4a4f57', '#6b5b45', '#2b3a2f'];
 const HAIRS = ['#15110e', '#2a1d14', '#4a3626', '#6b4a2b', '#8c8c8c'];
 const ROBES = ['#f0ece0', '#cfc6b0', '#7d8a9a', '#3b4658', '#8a6b4a'];
@@ -67,6 +67,7 @@ export function makePerson(opts) {
     add(geo('lid', () => { const g = new THREE.SphereGeometry(0.02, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.45); g.scale(1.3, 0.8, 0.6); return g; }), skin, sx * 0.043, 0.027, 0.1, head);
     add(geo('cheek', () => new THREE.SphereGeometry(0.03, 8, 6)), skin, sx * 0.062, -0.025, 0.088, head);
   }
+  if (!female && Math.random() < 0.4) { add(geo('shades', () => new THREE.BoxGeometry(0.2, 0.034, 0.03)), mat('#0b0b10'), 0, 0.026, 0.108, head); }
   add(geo('lipU', () => { const g = new THREE.BoxGeometry(0.04, 0.008, 0.012); return g; }), mat('#a05a54'), 0, -0.048, 0.106, head);
   add(geo('lipL', () => new THREE.BoxGeometry(0.034, 0.009, 0.012)), mat('#b36a62'), 0, -0.058, 0.104, head);
   add(geo('chin', () => new THREE.SphereGeometry(0.03, 8, 6)), skin, 0, -0.082, 0.07, head);
@@ -125,7 +126,7 @@ export class NPCs {
     for (let i = 0; i < count; i++) {
       const mesh = makePerson();
       scene.add(mesh);
-      const n = { mesh, k: 0, l: 0, dir: 1, corner: 0, x: 0, z: 0, speed: rnd(1.1, 2.1), phase: Math.random() * 6, down: 0, heading: 0, stride: rnd(0.8, 1.15), idle: 0 };
+      const n = { mesh, k: 0, l: 0, dir: 1, corner: 0, x: 0, z: 0, speed: rnd(1.1, 2.1), phase: Math.random() * 6, down: 0, downMax: 2.6, hp: 100, hpMax: 100, panic: 0, stagger: 0, barT: 0, crime: false, carCool: 0, heading: 0, stride: rnd(0.8, 1.15), idle: 0 };
       this.respawn(n);
       this.list.push(n);
     }
@@ -145,9 +146,16 @@ export class NPCs {
     const a = c[n.corner], b = c[(n.corner + 1) % 4];
     const t = Math.random();
     n.x = a[0] + (b[0] - a[0]) * t; n.z = a[1] + (b[1] - a[1]) * t;
-    n.down = 0;
+    n.down = 0; n.hp = 100; n.panic = 0; n.stagger = 0; n.barT = 0;
     n.mesh.rotation.x = 0;
     n.mesh.position.set(n.x, 0.34, n.z);
+  }
+
+  hit(n, dmg) {
+    if (n.down > 0) return false;
+    n.hp -= dmg; n.barT = 3.5; n.crime = true;
+    if (n.hp <= 0) { n.hp = 0; n.down = n.downMax = 5; return true; }
+    n.panic = 6; n.stagger = 0.35; return false;
   }
 
   update(dt, carObj, px, pz) {
@@ -157,15 +165,18 @@ export class NPCs {
       g.visible = near < 120;
       if (n.down > 0) {
         n.down -= dt;
-        g.rotation.x = -Math.PI / 2 * Math.min(1, (2.6 - n.down) * 6);
+        g.rotation.x = -Math.PI / 2 * Math.min(1, (n.downMax - n.down) * 6);
         g.position.y = 0.34 + 0.12;
         if (n.down <= 0) this.respawn(n);
         continue;
       }
       if (carObj && Math.abs(carObj.speed) > 5) {
-        if (Math.hypot(n.x - carObj.x, n.z - carObj.z) < 2.3) { n.down = 2.6; continue; }
+        if (n.carCool <= 0 && Math.hypot(n.x - carObj.x, n.z - carObj.z) < 2.3) { n.carCool = 0.8; this.hit(n, 30 + Math.abs(carObj.speed) * 4); if (n.down > 0) continue; }
       }
+      n.carCool -= dt; n.barT -= dt;
       let sp = n.speed;
+      if (n.panic > 0) { n.panic -= dt; sp = 3.7; n.idle = 0; }
+      if (n.stagger > 0) { n.stagger -= dt; sp = 0; }
       if (near < 1.2) sp = 0;
       // slow down and look around occasionally
       if (n.idle > 0) { n.idle -= dt; sp = 0; }

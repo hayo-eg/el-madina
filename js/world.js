@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from '../lib/BufferGeometryUtils.js';
 import { CFG, span, roadCoord, blockCoord } from './config.js';
 
-const PALETTE = ['#e8dcc0', '#d9c9a8', '#cbb491', '#b7c4c9', '#e3e0d5', '#c97e52', '#9fb4a0', '#d4a373'];
+const PALETTE = ['#ff9ec7', '#7fe5e0', '#ffe1a8', '#c9a7ff', '#a8e6cf', '#ffb3a0', '#f6f0e0', '#8fd3ff', '#ffd0e8', '#9be8ff'];
 
 // one shared window texture drawn on a canvas
 function windowTexture() {
@@ -17,10 +17,10 @@ function windowTexture() {
   for (let y = 0; y < 8; y++)
     for (let x = 0; x < 3; x++) {
       const wx = 10 + x * 40, wy = 6 + y * 32;
-      const lit = rnd() < 0.09;
+      const lit = rnd() < 0.22;
       const gr = g.createLinearGradient(0, wy, 0, wy + 20);
-      if (lit) { gr.addColorStop(0, '#d9c58a'); gr.addColorStop(1, '#b89a52'); }
-      else { gr.addColorStop(0, '#4a6a88'); gr.addColorStop(1, '#1f2e40'); }
+      if (lit) { gr.addColorStop(0, rnd() < 0.5 ? '#ffe28a' : '#ff9ad0'); gr.addColorStop(1, '#ffb347'); }
+      else { gr.addColorStop(0, '#5aa6c8'); gr.addColorStop(1, '#2a3a74'); }
       g.fillStyle = gr; g.fillRect(wx, wy, 26, 20);
       g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(wx, wy, 26, 2);
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(wx - 2, wy + 20, 30, 3);  // sill
@@ -39,14 +39,22 @@ export function buildCity(scene) {
   // ground
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(S + 700, S + 700),
-    new THREE.MeshLambertMaterial({ color: '#c9b083' })
+    new THREE.MeshLambertMaterial({ color: '#e3bda4' })
   );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);
 
+  // ocean to the south with a sandy beach band and a boardwalk
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(1400, 500), new THREE.MeshLambertMaterial({ color: '#1fc3d6', emissive: '#0a4a66' }));
+  sea.rotation.x = -Math.PI / 2; sea.position.set(0, 0.04, S / 2 + 34 + 250); scene.add(sea);
+  const foam = new THREE.Mesh(new THREE.PlaneGeometry(1400, 3), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.8 }));
+  foam.rotation.x = -Math.PI / 2; foam.position.set(0, 0.06, S / 2 + 34.5); scene.add(foam);
+  const walk = new THREE.Mesh(new THREE.BoxGeometry(S + 40, 0.3, 4), new THREE.MeshLambertMaterial({ color: '#c9a27c' }));
+  walk.position.set(0, 0.15, S / 2 + 12); scene.add(walk);
+
   // roads (two big cross strips per line)
-  const roadMat = new THREE.MeshLambertMaterial({ color: '#41464d' });
+  const roadMat = new THREE.MeshLambertMaterial({ color: '#4d4670' });
   const roadGeos = [];
   for (let i = 0; i <= CFG.grid; i++) {
     const c = roadCoord(i);
@@ -58,7 +66,7 @@ export function buildCity(scene) {
     roadGeos.push(gz);
   }
   // center dashes
-  const dashMat = new THREE.MeshLambertMaterial({ color: '#e8e4d8' });
+  const dashMat = new THREE.MeshLambertMaterial({ color: '#fdf3ea' });
   const dashGeos = [];
   for (let i = 0; i <= CFG.grid; i++) {
     const c = roadCoord(i);
@@ -92,7 +100,7 @@ export function buildCity(scene) {
   scene.add(new THREE.Mesh(mergeGeometries(zebra), dashMat));
 
   // sidewalk slabs (merged)
-  const walkMat = new THREE.MeshLambertMaterial({ color: '#b9b2a4' });
+  const walkMat = new THREE.MeshLambertMaterial({ color: '#e8d2dc' });
   const walkGeos = [];
   for (let k = 0; k < CFG.grid; k++)
     for (let l = 0; l < CFG.grid; l++) {
@@ -109,7 +117,7 @@ export function buildCity(scene) {
   const mats = PALETTE.map(c => new THREE.MeshLambertMaterial({ color: c }));
 
   const palmTrunks = [], palmLeaves = [];
-  const roofGeos = [], tankGeos = [];
+  const roofGeos = [], tankGeos = [], neonP = [], neonC = [];
   const awn = ['#c0392b', '#2e86c1', '#27ae60', '#d68910'].map(() => []);
   const emptyBlocks = [];
   const rng = mulberry(7);
@@ -143,6 +151,8 @@ export function buildCity(scene) {
     mesh.position.set(x, 0.3, z);
     mesh.castShadow = true; mesh.receiveShadow = true;
     scene.add(mesh);
+    { const nb = new THREE.BoxGeometry(w + 0.9, 0.3, d + 0.9); nb.translate(x, 0.3 + h - 0.6, z); (rng() < 0.5 ? neonP : neonC).push(nb);
+      if (h > 14) { const nb2 = new THREE.BoxGeometry(w + 0.9, 0.25, d + 0.9); nb2.translate(x, 0.3 + h * 0.5, z); (rng() < 0.5 ? neonP : neonC).push(nb2); } }
     const cor = new THREE.BoxGeometry(w + 0.7, 0.55, d + 0.7); cor.translate(x, 0.3 + h + 0.27, z); roofGeos.push(cor);
     const ac = new THREE.BoxGeometry(w * 0.3, 1.2, d * 0.28); ac.translate(x + (rng() - 0.5) * w * 0.4, 0.3 + h + 1.1, z + (rng() - 0.5) * d * 0.4); roofGeos.push(ac);
     if (rng() < 0.45) { const tk = new THREE.CylinderGeometry(1.1, 1.1, 1.8, 10); tk.translate(x + (rng() - 0.5) * w * 0.5, 0.3 + h + 1.4, z + (rng() - 0.5) * d * 0.5); tankGeos.push(tk); }
@@ -152,28 +162,39 @@ export function buildCity(scene) {
     colliders.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, h: h + 0.3 });
   }
 
-  function addPalms(trunks, leaves, cx, cz, n) {
+  function addPalms(trunks, leaves, cx, cz, n, exact) {
     for (let i = 0; i < n; i++) {
-      const x = cx + (rng() - 0.5) * (CFG.block - 10);
-      const z = cz + (rng() - 0.5) * (CFG.block - 10);
-      const h = 3.6 + rng() * 2.2;
-      const t = new THREE.CylinderGeometry(0.22, 0.34, h, 5);
+      const x = exact ? cx : cx + (rng() - 0.5) * (CFG.block - 10);
+      const z = exact ? cz : cz + (rng() - 0.5) * (CFG.block - 10);
+      const h = 4.2 + rng() * 2.6;
+      const t = new THREE.CylinderGeometry(0.18, 0.32, h, 7);
       t.translate(x, h / 2, z);
       trunks.push(t);
-      const l1 = new THREE.ConeGeometry(2.1, 1.1, 6);
-      l1.translate(x, h + 0.4, z);
-      leaves.push(l1);
-      const l2 = new THREE.ConeGeometry(1.5, 0.8, 6);
-      l2.rotateY(0.5);
-      l2.translate(x, h + 0.9, z);
-      leaves.push(l2);
+      const nf = 7, off = rng() * 6;
+      for (let f = 0; f < nf; f++) {
+        const fr = new THREE.BoxGeometry(2.8, 0.07, 0.62);
+        fr.translate(1.4, 0, 0); fr.rotateZ(-0.42); fr.rotateY(off + f * Math.PI * 2 / nf);
+        fr.translate(x, h + 0.2, z);
+        leaves.push(fr);
+      }
+      const nut = new THREE.SphereGeometry(0.28, 6, 5); nut.translate(x, h - 0.1, z); trunks.push(nut);
     }
   }
+  // sidewalk palms along every block edge (Vice-City boulevard feel)
+  for (let k = 0; k < CFG.grid; k++)
+    for (let l = 0; l < CFG.grid; l++) {
+      const cx = blockCoord(k), cz = blockCoord(l), o = CFG.block / 2 + 1.2;
+      addPalms(palmTrunks, palmLeaves, cx - o, cz - o, 1, true);
+      addPalms(palmTrunks, palmLeaves, cx + o, cz + o, 1, true);
+      if ((k + l) % 2 === 0) { addPalms(palmTrunks, palmLeaves, cx + o, cz - o, 1, true); addPalms(palmTrunks, palmLeaves, cx - o, cz + o, 1, true); }
+    }
 
   if (palmTrunks.length) {
-    const t1 = new THREE.Mesh(mergeGeometries(palmTrunks), new THREE.MeshLambertMaterial({ color: '#7a5230' })); t1.castShadow = true; scene.add(t1);
-    const t2 = new THREE.Mesh(mergeGeometries(palmLeaves), new THREE.MeshLambertMaterial({ color: '#4e8f4a' })); t2.castShadow = true; scene.add(t2);
+    const t1 = new THREE.Mesh(mergeGeometries(palmTrunks), new THREE.MeshLambertMaterial({ color: '#9a6b42' })); t1.castShadow = true; scene.add(t1);
+    const t2 = new THREE.Mesh(mergeGeometries(palmLeaves), new THREE.MeshLambertMaterial({ color: '#27b36a', side: THREE.DoubleSide })); t2.castShadow = true; scene.add(t2);
   }
+  if (neonP.length) scene.add(new THREE.Mesh(mergeGeometries(neonP), new THREE.MeshBasicMaterial({ color: '#ff3fa4' })));
+  if (neonC.length) scene.add(new THREE.Mesh(mergeGeometries(neonC), new THREE.MeshBasicMaterial({ color: '#2de2e6' })));
   const roofMesh = new THREE.Mesh(mergeGeometries(roofGeos), new THREE.MeshLambertMaterial({ color: '#8d8a84' })); roofMesh.castShadow = true; scene.add(roofMesh);
   if (tankGeos.length) scene.add(new THREE.Mesh(mergeGeometries(tankGeos), new THREE.MeshLambertMaterial({ color: '#4a5560' })));
   ['#c0392b', '#2e86c1', '#27ae60', '#d68910'].forEach((c, i) => { if (awn[i].length) { const am = new THREE.Mesh(mergeGeometries(awn[i]), new THREE.MeshLambertMaterial({ color: c })); am.castShadow = true; scene.add(am); } });
@@ -191,7 +212,7 @@ export function buildCity(scene) {
       headGeos.push(hgeo);
     }
   scene.add(new THREE.Mesh(mergeGeometries(poleGeos), new THREE.MeshLambertMaterial({ color: '#5b6470' })));
-  scene.add(new THREE.Mesh(mergeGeometries(headGeos), new THREE.MeshBasicMaterial({ color: '#ffe9a8' })));
+  scene.add(new THREE.Mesh(mergeGeometries(headGeos), new THREE.MeshBasicMaterial({ color: '#ffd0f0' })));
 
   return { colliders, emptyBlocks, size: S };
 }
