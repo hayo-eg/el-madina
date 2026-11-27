@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 
-export const HORIZON = '#f59bb8';
+export const HORIZON = '#f3c392';
 
 export function makeSky(scene) {
   const sunDir = new THREE.Vector3(60, 24, 110).normalize();
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
     uniforms: {
-      top: { value: new THREE.Color('#1c1a6e') },
-      mid: { value: new THREE.Color('#b5409d') },
+      top: { value: new THREE.Color('#2c4a86') },
+      mid: { value: new THREE.Color('#d9808f') },
       hor: { value: new THREE.Color(HORIZON) },
       sun: { value: sunDir },
     },
@@ -69,7 +69,7 @@ export function makeEnvMap(renderer) {
   const g = new THREE.SphereGeometry(50, 16, 12);
   const col = [];
   const pos = g.attributes.position;
-  const top = new THREE.Color('#6a3fa8'), hor = new THREE.Color(HORIZON), gr = new THREE.Color('#6a4a7c');
+  const top = new THREE.Color('#3b5fa0'), hor = new THREE.Color(HORIZON), gr = new THREE.Color('#7a6a60');
   for (let i = 0; i < pos.count; i++) {
     const y = pos.getY(i) / 50;
     const c = y >= 0 ? hor.clone().lerp(top, Math.pow(y, 0.6)) : hor.clone().lerp(gr, Math.min(1, -y * 3));

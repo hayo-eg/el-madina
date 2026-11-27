@@ -34,12 +34,12 @@ export function makePerson(opts) {
   const kind = opts.kind ? opts.kind : female ? (Math.random() < 0.55 ? 'abaya' : (Math.random() < 0.5 ? 'dress' : 'casual')) : (Math.random() < 0.2 ? 'galabeya' : 'casual');
   const hijab = female && Math.random() < 0.7 && !opts.kind;
   const long = kind === 'galabeya' || kind === 'abaya' || kind === 'dress';
-  const skin = smat(pick(SKINS));
-  const top = fmat(kind === 'galabeya' ? pick(ROBES) : kind === 'abaya' ? pick(['#1a1a1a', '#26303d', '#3b2f3f']) : pick(TOPS));
-  const bottom = fmat(pick(BOTTOMS));
+  const skin = smat(opts.skin || pick(SKINS));
+  const top = fmat(opts.top || kind === 'galabeya' ? pick(ROBES) : kind === 'abaya' ? pick(['#1a1a1a', '#26303d', '#3b2f3f']) : pick(TOPS));
+  const bottom = fmat(opts.bottom || pick(BOTTOMS));
   const shoe = mat(pick(SHOES));
   const longSleeves = long || Math.random() < 0.35;
-  const sc = rnd(0.93, 1.07) * (female ? 0.95 : 1.0);
+  const sc = (opts.scale || rnd(0.9, 1.09)) * (female ? 0.95 : 1.0);
   const wide = rnd(0.92, 1.12);
 
   const root = new THREE.Group();
@@ -86,7 +86,7 @@ export function makePerson(opts) {
     const hj = add(geo('hijab', () => { const g = new THREE.SphereGeometry(0.135, 14, 12); g.scale(0.98, 1.1, 1.05); return g; }), hm, 0, 0.012, -0.045, head, true);
     add(geo('hijabs', () => cyl(0.12, 0.2, 0.24, 12, 0)), hm, 0, -0.17, -0.02, head);
   } else {
-    const hair = mat(pick(HAIRS));
+    const hair = mat(opts.hair || pick(HAIRS));
     const style = female ? pick(['long', 'bun', 'long']) : pick(['short', 'short', 'cap', 'bald', 'curly']);
     if (style !== 'bald') {
       add(geo('hcap', () => { const g = new THREE.SphereGeometry(0.12, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55); g.scale(1, 1.1, 1.08); return g; }), hair, 0, 0.012, -0.012, head, true);
@@ -95,6 +95,34 @@ export function makePerson(opts) {
     if (style === 'bun') add(geo('bun', () => new THREE.SphereGeometry(0.05, 8, 8)), hair, 0, 0.1, -0.1, head);
     if (style === 'curly') add(geo('curly', () => new THREE.SphereGeometry(0.135, 8, 8)), hair, 0, 0.04, -0.02, head);
     if (!female && Math.random() < 0.3) add(geo('beard', () => { const g = new THREE.SphereGeometry(0.1, 10, 8, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.4); g.scale(0.95, 1.0, 0.9); return g; }), mat('#241a14'), 0, -0.02, 0.01, head);
+  }
+
+  // accessories: hats, bags, jackets, ties (story characters can force one with opts.acc)
+  {
+    const acc = opts.acc !== undefined ? opts.acc : (Math.random() < 0.62 ? Math.floor(Math.random() * 9) : -1);
+    const acol = opts.accColor || pick(['#c0392b', '#2e6fb5', '#222222', '#f2f2ee', '#2f8f5b', '#e0a030', '#6b3fa0']);
+    if (acc === 0 && !hijab) { // baseball cap
+      add(geo('capd', () => new THREE.SphereGeometry(0.125, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5)), mat(acol), 0, 0.03, -0.01, head);
+      add(geo('capv', () => new THREE.BoxGeometry(0.15, 0.012, 0.09)), mat(acol), 0, 0.045, 0.13, head);
+    } else if (acc === 1 && !female) { // white kufi
+      add(geo('kufi', () => new THREE.SphereGeometry(0.108, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.32)), mat('#f4f1e6'), 0, 0.075, 0, head);
+    } else if (acc === 2 && !female) { // tarboosh-style / wool hat
+      add(geo('wool', () => new THREE.SphereGeometry(0.12, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5)), mat(acol), 0, 0.04, -0.005, head);
+      add(geo('woolb', () => new THREE.TorusGeometry(0.115, 0.018, 6, 14)), mat('#e9e2d0'), 0, 0.04, 0, head).rotation.x = Math.PI / 2;
+    } else if (acc === 3) { // backpack
+      add(geo('bpk', () => new THREE.BoxGeometry(0.26, 0.34, 0.12)), mat(acol), 0, 1.3, -0.17, body, true);
+    } else if (acc === 4) { // shoulder bag
+      add(geo('bag', () => new THREE.BoxGeometry(0.2, 0.16, 0.08)), mat(acol), 0.24, 0.98, 0.04, body);
+      const st = add(geo('strap', () => new THREE.BoxGeometry(0.02, 0.62, 0.02)), mat(acol), 0.06, 1.3, 0.14, body); st.rotation.z = -0.55;
+    } else if (acc === 5 && !long) { // open jacket / vest
+      add(geo('vest', () => cyl(0.215, 0.18, 0.4, 14, 0)), mat(acol), 0, 1.28, -0.012, body).scale.z = 0.66;
+    } else if (acc === 6 && !female && !long) { // tie
+      add(geo('tie', () => new THREE.BoxGeometry(0.03, 0.26, 0.012)), mat(acol), 0, 1.36, 0.122, body);
+    } else if (acc === 7) { // headphones / earphones band
+      add(geo('hp', () => new THREE.TorusGeometry(0.115, 0.012, 6, 14, Math.PI)), mat('#1e1e1e'), 0, 0.01, 0, head);
+    } else if (acc === 8 && !long) { // scarf
+      add(geo('scarf', () => new THREE.TorusGeometry(0.075, 0.03, 6, 12)), mat(acol), 0, 1.57, 0, body).rotation.x = Math.PI / 2;
+    }
   }
 
   // arms: shoulder pivot -> upper arm -> elbow pivot -> forearm + hand
@@ -137,9 +165,25 @@ export function makePerson(opts) {
   return root;
 }
 
+const AMBIENT = ['الجو حلو النهاردة', 'إيه يا عم الزحمة دي', 'صباح الفل', 'هو الأتوبيس اتأخر ليه؟', 'ده غالي أوي', 'يا ساتر يا رب', 'نروح فين النهاردة؟', 'ربنا يسهل', 'استنى بس هرد عليك', 'عايز أمسك كشري', 'الدنيا حر أوي', 'مين اللي كسب امبارح؟'];
+const GREET = ['إزيك يا باشا', 'صباح الخير', 'أهلاً يا كبير', 'ازيك يا معلم', 'حاسب يا أستاذ', 'منور الحارة'];
+const SCARED = ['الحقوني!', 'يا نهار أبيض!', 'سلاح! اجري!', 'يا لهوي!', 'ابعد عني!'];
+const ANGRY = ['إنت مجنون؟!', 'هتندم!', 'تعالى هنا!', 'إيه ده يا عم؟!'];
+const _bt2 = {};
+function textTex(t) {
+  if (_bt2[t]) return _bt2[t];
+  const c = document.createElement('canvas'); c.width = 256; c.height = 72; const g = c.getContext('2d');
+  g.fillStyle = 'rgba(255,255,255,.94)'; g.strokeStyle = '#222'; g.lineWidth = 3;
+  g.beginPath(); (g.roundRect || g.rect).call(g, 4, 4, 248, 50, 14); g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(118, 54); g.lineTo(128, 70); g.lineTo(138, 54); g.fillStyle = 'rgba(255,255,255,.94)'; g.fill();
+  g.fillStyle = '#111'; g.font = 'bold 24px Tahoma, Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.direction = 'rtl'; g.fillText(t, 128, 30, 232);
+  const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; return (_bt2[t] = tx);
+}
+
 export class NPCs {
   constructor(scene, count) {
-    this.list = []; this.pendingHits = 0; this.colliders = []; this.rp = 0;
+    this.list = []; this.pendingHits = 0; this.colliders = []; this.rp = 0; this.talkT = 0; this.bubbles = [];
+    for (let i = 0; i < 5; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ depthTest: false, transparent: true })); s.scale.set(2.3, 0.65, 1); s.visible = false; s.renderOrder = 998; scene.add(s); this.bubbles.push({ s, n: null, t: 0 }); }
     for (let i = 0; i < count; i++) {
       const mesh = makePerson();
       scene.add(mesh);
@@ -147,6 +191,36 @@ export class NPCs {
       this.respawn(n);
       this.list.push(n);
     }
+  }
+
+  say(n, text, dur = 2.6, force) {
+    let b = this.bubbles.find(q => q.n === n);
+    if (!b) b = this.bubbles.find(q => q.t <= 0) || (force ? this.bubbles.reduce((a, q) => (q.t < a.t ? q : a)) : null);
+    if (!b) return false;
+    b.n = n; b.t = dur; b.s.material.map = textTex(text); b.s.material.needsUpdate = true; b.s.visible = true;
+    return true;
+  }
+  tickBubbles(dt) {
+    for (const b of this.bubbles) {
+      if (b.t <= 0) continue;
+      b.t -= dt;
+      if (b.t <= 0 || !b.n || b.n.mesh.visible === false || b.n.down > 0) { b.t = 0; b.s.visible = false; b.n = null; continue; }
+      b.s.position.set(b.n.x, 2.55, b.n.z);
+    }
+  }
+  chatter(dt, px, pz) {
+    this.talkT -= dt;
+    if (this.talkT > 0) return;
+    this.talkT = 1.1 + Math.random();
+    const near = this.list.filter(n => n.down <= 0 && n.flee <= 0 && n.fight <= 0 && Math.hypot(n.x - px, n.z - pz) < 16);
+    if (!near.length) return;
+    // greet the player if someone is very close
+    for (const n of near) {
+      if ((n.greetCd || 0) > 0) { n.greetCd -= 1; continue; }
+      if (Math.hypot(n.x - px, n.z - pz) < 3.2 && this.say(n, GREET[Math.floor(Math.random() * GREET.length)], 2.4)) { n.greetCd = 15; n.talk = 2.2; n.idle = 2.2; n.faceP = true; return; }
+    }
+    const n = near[Math.floor(Math.random() * near.length)];
+    if (Math.random() < 0.6 && this.say(n, AMBIENT[Math.floor(Math.random() * AMBIENT.length)], 2.8)) { n.idle = 2.8; }
   }
 
   corners(n) {
@@ -173,7 +247,7 @@ export class NPCs {
     n.hp -= dmg; n.barT = 3.5; n.crime = true;
     if (n.hp <= 0) { n.hp = 0; n.down = n.downMax = 5; n.flee = 0; n.fight = 0; return true; }
     n.stagger = 0.35;
-    if (src === 'punch' && n.brave) { n.fight = 10; n.flee = 0; }
+    if (src === 'punch' && n.brave) { n.fight = 10; n.flee = 0; this.say(n, ANGRY[Math.floor(Math.random() * ANGRY.length)], 2.4, true); }
     else { n.fight = 0; n.flee = 7; n.fx = sx === undefined ? n.x : sx; n.fz = sz === undefined ? n.z + 1 : sz; }
     return false;
   }
@@ -213,14 +287,14 @@ export class NPCs {
     for (const n of this.list) {
       if (n.down > 0 || n.fight > 0) continue;
       const d = Math.hypot(n.x - x, n.z - z);
-      if (d < r) { n.flee = Math.max(n.flee, 5 + Math.random() * 3); n.fx = x; n.fz = z; n.idle = 0; n.stagger = Math.min(n.stagger, 0.05 + d * 0.004); }
+      if (d < r) { if (n.flee <= 0 && Math.random() < 0.5) this.say(n, SCARED[Math.floor(Math.random() * SCARED.length)], 2.2, true); n.flee = Math.max(n.flee, 5 + Math.random() * 3); n.fx = x; n.fz = z; n.idle = 0; n.stagger = Math.min(n.stagger, 0.05 + d * 0.004); }
     }
   }
 
   knock(n, fx, fz, d) { n.x += fx * d; n.z += fz * d; }
 
   update(dt, carObj, px, pz) {
-    this.recycle(px, pz);
+    this.recycle(px, pz); this.tickBubbles(dt); this.chatter(dt, px, pz);
     for (const n of this.list) {
       const g = n.mesh;
       const near = Math.hypot(n.x - px, n.z - pz);
@@ -275,7 +349,7 @@ export class NPCs {
       if (n.stagger > 0) { n.stagger -= dt; sp = 0; }
       if (near < 1.2) sp = 0;
       // slow down and look around occasionally
-      if (n.idle > 0) { n.idle -= dt; sp = 0; }
+      if (n.idle > 0) { n.idle -= dt; sp = 0; if (n.faceP) { let dh = Math.atan2(px - n.x, pz - n.z) - n.heading; while (dh > Math.PI) dh -= Math.PI * 2; while (dh < -Math.PI) dh += Math.PI * 2; n.heading += dh * Math.min(1, dt * 6); if (n.idle <= 0) n.faceP = false; } }
       else if (Math.random() < dt * 0.02) n.idle = rnd(1, 3);
       const c = this.corners(n);
       const tgt = n.dir > 0 ? c[(n.corner + 1) % 4] : c[n.corner];

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from '../lib/BufferGeometryUtils.js';
+import { buildDistrict } from './buildings.js';
 import { CFG, span, roadCoord, blockCoord } from './config.js';
 
 const PALETTE = ['#ff9ec7', '#7fe5e0', '#ffe1a8', '#c9a7ff', '#a8e6cf', '#ffb3a0', '#f6f0e0', '#8fd3ff', '#ffd0e8', '#9be8ff'];
@@ -39,7 +40,7 @@ export function buildCity(scene) {
   // ground
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(S + 700, S + 700),
-    new THREE.MeshLambertMaterial({ color: '#e3bda4' })
+    new THREE.MeshLambertMaterial({ color: '#c9b48e' })
   );
   ground.rotation.x = -Math.PI / 2;
   { const SE = S / 2 + 34, H = S / 2 + 350 + SE; ground.scale.y = H / (S + 700); ground.position.z = (SE - (S / 2 + 350)) / 2; }
@@ -104,7 +105,7 @@ export function buildCity(scene) {
     const sk = []; let r0 = 7;
     const rr = () => { r0 = (r0 * 16807) % 2147483647; return r0 / 2147483647; };
     for (let i = 0; i < 70; i++) { const w = 18 + rr() * 30, h = 25 + rr() * rr() * 130, g = new THREE.BoxGeometry(w, h, 18 + rr() * 20); g.translate(-760 + i * 22 + rr() * 8, h / 2 - 1, SEA0 + 560 + rr() * 40); sk.push(g); }
-    const m = new THREE.Mesh(mergeGeometries(sk), new THREE.MeshBasicMaterial({ color: '#7a3d8f', fog: false })); scene.add(m);
+    const m = new THREE.Mesh(mergeGeometries(sk), new THREE.MeshBasicMaterial({ color: '#8a7a92', fog: false })); scene.add(m);
     const gl = [];
     for (let i = 0; i < 90; i++) { const g = new THREE.BoxGeometry(2, 3, 1); g.translate(-760 + rr() * 1560, 5 + rr() * 90, SEA0 + 535); gl.push(g); }
     scene.add(new THREE.Mesh(mergeGeometries(gl), new THREE.MeshBasicMaterial({ color: '#ffd7f2', fog: false })));
@@ -122,7 +123,7 @@ export function buildCity(scene) {
   }
 
   // roads (two big cross strips per line)
-  const roadMat = new THREE.MeshLambertMaterial({ color: '#4d4670' });
+  const roadMat = new THREE.MeshLambertMaterial({ color: '#3a3b40' });
   const roadGeos = [];
   for (let i = 0; i <= CFG.grid; i++) {
     const c = roadCoord(i);
@@ -168,7 +169,7 @@ export function buildCity(scene) {
   scene.add(new THREE.Mesh(mergeGeometries(zebra), dashMat));
 
   // sidewalk slabs (merged)
-  const walkMat = new THREE.MeshLambertMaterial({ color: '#e8d2dc' });
+  const walkMat = new THREE.MeshLambertMaterial({ color: '#b9b2a6' });
   const walkGeos = [];
   for (let k = 0; k < CFG.grid; k++)
     for (let l = 0; l < CFG.grid; l++) {
@@ -178,94 +179,8 @@ export function buildCity(scene) {
     }
   const walkMesh = new THREE.Mesh(mergeGeometries(walkGeos), walkMat); walkMesh.receiveShadow = true; scene.add(walkMesh);
 
-  // buildings
-  const winTex = windowTexture();
-  const unitBox = new THREE.BoxGeometry(1, 1, 1);
-  unitBox.translate(0, 0.5, 0); // pivot at base
-  const mats = PALETTE.map(c => new THREE.MeshLambertMaterial({ color: c }));
-
-  const palmTrunks = [], palmLeaves = [];
-  const roofGeos = [], tankGeos = [], neonP = [], neonC = [];
-  const awn = ['#c0392b', '#2e86c1', '#27ae60', '#d68910'].map(() => []);
-  const emptyBlocks = [];
-  const rng = mulberry(7);
-  for (let k = 0; k < CFG.grid; k++)
-    for (let l = 0; l < CFG.grid; l++) {
-      const cx = blockCoord(k), cz = blockCoord(l);
-      const r = rng();
-      if (r < 0.18) { emptyBlocks.push([k, l]); addPalms(palmTrunks, palmLeaves, cx, cz, 3 + Math.floor(rng() * 4)); continue; }
-      if (r < 0.45) {
-        // 2x2 small buildings
-        for (let a = -1; a <= 1; a += 2)
-          for (let b = -1; b <= 1; b += 2) {
-            const w = 12 + rng() * 5, d = 12 + rng() * 5, h = 7 + rng() * 12;
-            addBuilding(cx + a * (CFG.block / 4 + 1), cz + b * (CFG.block / 4 + 1), w, d, h);
-          }
-      } else {
-        const w = 20 + rng() * 12, d = 20 + rng() * 12, h = 9 + rng() * 26;
-        addBuilding(cx, cz, w, d, h);
-        if (rng() < 0.3) addPalms(palmTrunks, palmLeaves, cx + w / 2 + 5, cz + d / 2 + 5, 1);
-      }
-    }
-
-  function addBuilding(x, z, w, d, h) {
-    const base = mats[Math.floor(rng() * mats.length)];
-    const t = winTex.clone();
-    t.repeat.set(Math.max(1, Math.round(w / 9)), Math.max(1, Math.round(h / 8)));
-    t.needsUpdate = true;
-    const m = new THREE.MeshLambertMaterial({ color: base.color, map: t });
-    const mesh = new THREE.Mesh(unitBox, m);
-    mesh.scale.set(w, h, d);
-    mesh.position.set(x, 0.3, z);
-    mesh.castShadow = true; mesh.receiveShadow = true;
-    scene.add(mesh);
-    { const nb = new THREE.BoxGeometry(w + 0.9, 0.3, d + 0.9); nb.translate(x, 0.3 + h - 0.6, z); (rng() < 0.5 ? neonP : neonC).push(nb);
-      if (h > 14) { const nb2 = new THREE.BoxGeometry(w + 0.9, 0.25, d + 0.9); nb2.translate(x, 0.3 + h * 0.5, z); (rng() < 0.5 ? neonP : neonC).push(nb2); } }
-    const cor = new THREE.BoxGeometry(w + 0.7, 0.55, d + 0.7); cor.translate(x, 0.3 + h + 0.27, z); roofGeos.push(cor);
-    const ac = new THREE.BoxGeometry(w * 0.3, 1.2, d * 0.28); ac.translate(x + (rng() - 0.5) * w * 0.4, 0.3 + h + 1.1, z + (rng() - 0.5) * d * 0.4); roofGeos.push(ac);
-    if (rng() < 0.45) { const tk = new THREE.CylinderGeometry(1.1, 1.1, 1.8, 10); tk.translate(x + (rng() - 0.5) * w * 0.5, 0.3 + h + 1.4, z + (rng() - 0.5) * d * 0.5); tankGeos.push(tk); }
-    const ai = Math.floor(rng() * 4);
-    const aw1 = new THREE.BoxGeometry(w * 0.75, 0.22, 1.3); aw1.translate(x, 3.6, z + d / 2 + 0.6); awn[ai].push(aw1);
-    const aw2 = new THREE.BoxGeometry(1.3, 0.22, d * 0.75); aw2.translate(x + w / 2 + 0.6, 3.6, z); awn[(ai + 1) % 4].push(aw2);
-    colliders.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, h: h + 0.3 });
-  }
-
-  function addPalms(trunks, leaves, cx, cz, n, exact) {
-    for (let i = 0; i < n; i++) {
-      const x = exact ? cx : cx + (rng() - 0.5) * (CFG.block - 10);
-      const z = exact ? cz : cz + (rng() - 0.5) * (CFG.block - 10);
-      const h = 4.2 + rng() * 2.6;
-      const t = new THREE.CylinderGeometry(0.18, 0.32, h, 7);
-      t.translate(x, h / 2, z);
-      trunks.push(t);
-      const nf = 7, off = rng() * 6;
-      for (let f = 0; f < nf; f++) {
-        const fr = new THREE.BoxGeometry(2.8, 0.07, 0.62);
-        fr.translate(1.4, 0, 0); fr.rotateZ(-0.42); fr.rotateY(off + f * Math.PI * 2 / nf);
-        fr.translate(x, h + 0.2, z);
-        leaves.push(fr);
-      }
-      const nut = new THREE.SphereGeometry(0.28, 6, 5); nut.translate(x, h - 0.1, z); trunks.push(nut);
-    }
-  }
-  // sidewalk palms along every block edge (Vice-City boulevard feel)
-  for (let k = 0; k < CFG.grid; k++)
-    for (let l = 0; l < CFG.grid; l++) {
-      const cx = blockCoord(k), cz = blockCoord(l), o = CFG.block / 2 + 1.2;
-      addPalms(palmTrunks, palmLeaves, cx - o, cz - o, 1, true);
-      addPalms(palmTrunks, palmLeaves, cx + o, cz + o, 1, true);
-      if ((k + l) % 2 === 0) { addPalms(palmTrunks, palmLeaves, cx + o, cz - o, 1, true); addPalms(palmTrunks, palmLeaves, cx - o, cz + o, 1, true); }
-    }
-
-  if (palmTrunks.length) {
-    const t1 = new THREE.Mesh(mergeGeometries(palmTrunks), new THREE.MeshLambertMaterial({ color: '#9a6b42' })); t1.castShadow = true; scene.add(t1);
-    const t2 = new THREE.Mesh(mergeGeometries(palmLeaves), new THREE.MeshLambertMaterial({ color: '#27b36a', side: THREE.DoubleSide })); t2.castShadow = true; scene.add(t2);
-  }
-  if (neonP.length) scene.add(new THREE.Mesh(mergeGeometries(neonP), new THREE.MeshBasicMaterial({ color: '#ff3fa4' })));
-  if (neonC.length) scene.add(new THREE.Mesh(mergeGeometries(neonC), new THREE.MeshBasicMaterial({ color: '#2de2e6' })));
-  const roofMesh = new THREE.Mesh(mergeGeometries(roofGeos), new THREE.MeshLambertMaterial({ color: '#8d8a84' })); roofMesh.castShadow = true; scene.add(roofMesh);
-  if (tankGeos.length) scene.add(new THREE.Mesh(mergeGeometries(tankGeos), new THREE.MeshLambertMaterial({ color: '#4a5560' })));
-  ['#c0392b', '#2e86c1', '#27ae60', '#d68910'].forEach((c, i) => { if (awn[i].length) { const am = new THREE.Mesh(mergeGeometries(awn[i]), new THREE.MeshLambertMaterial({ color: c })); am.castShadow = true; scene.add(am); } });
+  // buildings, parks, landmarks, street furniture (see buildings.js)
+  const { emptyBlocks } = buildDistrict(scene, colliders);
 
   // street lights at intersection corners
   const poleGeos = [], headGeos = [];

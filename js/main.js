@@ -167,8 +167,8 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(HORIZON);
 scene.fog = new THREE.Fog(HORIZON, 110, 420);
-scene.add(new THREE.HemisphereLight('#ffe3ee', '#6a5a80', 1.0));
-const sun = new THREE.DirectionalLight('#ffbf9a', 1.7);
+scene.add(new THREE.HemisphereLight('#ffeede', '#76675c', 1.0));
+const sun = new THREE.DirectionalLight('#ffd7ac', 1.8);
 const SUN_OFF = new THREE.Vector3(55, 62, 95);
 sun.castShadow = !!S.shadows;
 sun.shadow.mapSize.set(1024, 1024);
@@ -708,7 +708,8 @@ $('btnFull').addEventListener('click', () => {
   if (rq) Promise.resolve(rq.call(el)).then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} }).catch(() => {});
   else banner('الشاشة الكاملة مش مدعومة هنا', '#fff', 1500);
 });
-buildSettingsUI(key => {
+const onSet = key => {
+  if (key === 'quality') { applyQuality(S.quality === 'auto' ? autoTier() : TIERS.indexOf(S.quality)); buildSettingsUI(onSet); perfDone = S.quality !== 'auto'; perfT = 0; perfN = 0; }
   if (key === 'shadows') { renderer.shadowMap.enabled = !!S.shadows; sun.castShadow = !!S.shadows; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); perfDone = true; }
   if (key === 'hiRes') applyPixelRatio();
   if (key === 'volume') audio.vol = S.volume;
@@ -716,7 +717,8 @@ buildSettingsUI(key => {
   if (key === 'npc') applyNpc();
   if (key === 'traffic') applyTraffic();
   if (key === 'kmh') $('spUnit').textContent = S.kmh ? 'كم/س' : 'ميل/س';
-});
+};
+buildSettingsUI(onSet);
 audio.vol = S.volume;
 $('spUnit').textContent = S.kmh ? 'كم/س' : 'ميل/س';
 
@@ -858,24 +860,41 @@ function loop(now) {
   renderer.render(scene, camera);
 }
 
-let perfT = 0, perfN = 0, perfDone = false;
+const TIERS = ['low', 'medium', 'high'];
+let curTier = 1;
+function autoTier() {
+  const mem = navigator.deviceMemory, cores = navigator.hardwareConcurrency || 4;
+  if (mem !== undefined) { if (mem <= 2 || (mem <= 3 && cores <= 4)) return 0; if (mem >= 8 && cores >= 8) return 2; return 1; }
+  if (cores <= 4) return 0;
+  return IS_TOUCH ? 1 : 2;
+}
+function applyQuality(t) {
+  curTier = t;
+  const q = [{ sh: false, pr: 1, npc: 'low', tr: 'low', fog: [70, 260] }, { sh: false, pr: 1.25, npc: 'normal', tr: 'normal', fog: [100, 380] }, { sh: true, pr: 2, npc: 'high', tr: 'high', fog: [120, 430] }][t];
+  S.shadows = q.sh; S.hiRes = q.pr > 1.5; S.npc = q.npc; S.traffic = q.tr;
+  renderer.shadowMap.enabled = q.sh; sun.castShadow = q.sh;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.pr));
+  scene.fog.near = q.fog[0]; scene.fog.far = q.fog[1];
+  scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
+  applyNpc(); applyTraffic();
+  window.__tier = TIERS[t];
+}
+let perfT = 0, perfN = 0, perfDone = false, perfDrops = 0;
 const FORCE = /shadows=on/.test(location.search);
 function perfCheck(dt) {
-  if (perfDone || FORCE || !started) return;
+  if (perfDone || FORCE || !started || S.quality !== 'auto') return;
   perfT += dt; perfN++;
-  if (perfT > 3) {
-    perfDone = true;
-    if (perfN / perfT < 28) {
-      renderer.shadowMap.enabled = false; sun.castShadow = false; renderer.setPixelRatio(1);
-      scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
-      window.__lowQuality = true;
-    }
+  if (perfT > 4) {
+    const fps = perfN / perfT; perfT = 0; perfN = 0;
+    if (fps < 42 && curTier > 0) { applyQuality(curTier - 1); perfDrops++; window.__lowQuality = true; if (perfDrops >= 2) perfDone = true; }
+    else perfDone = true;
   }
 }
 camera.position.set(player.x, 7.5, player.z - 11);
 requestAnimationFrame(loop);
 radar.draw(radarInfo(), 0);
 refreshStars(); refreshWeaponHud(); setWeapon(0);
+applyQuality(S.quality === 'auto' ? autoTier() : Math.max(0, TIERS.indexOf(S.quality)));
 
 $('startBtn').addEventListener('click', () => {
   audio.init();

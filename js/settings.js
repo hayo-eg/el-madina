@@ -1,10 +1,11 @@
-const DEF = { handling: 'realistic', steer: 1, camDist: 1, volume: 0.8, shadows: true, hiRes: false, npc: 'high', traffic: 'normal', police: 'normal', autoAim: false, shoulder: false, radio: true, kmh: true };
+const DEF = { quality: 'auto', handling: 'realistic', steer: 1, camDist: 1, volume: 0.8, shadows: true, hiRes: false, npc: 'high', traffic: 'normal', police: 'normal', autoAim: false, shoulder: false, radio: true, kmh: true };
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem('madina_settings') || '{}'); } catch (e) {}
 export const S = Object.assign({}, DEF, saved);
 export function save() { try { localStorage.setItem('madina_settings', JSON.stringify(S)); } catch (e) {} }
 
 const ROWS = [
+  ['quality', 'الجودة', 'select', [['auto', 'تلقائي (حسب الموبايل)'], ['low', 'خفيفة (موبايل ضعيف)'], ['medium', 'متوسطة'], ['high', 'عالية']]],
   ['handling', 'نظام السواقة', 'select', [['realistic', 'واقعي'], ['arcade', 'أركيد (سهل)']]],
   ['steer', 'حساسية الدريكسيون', 'range', [0.5, 1.6, 0.1]],
   ['camDist', 'بعد الكاميرا', 'range', [0.7, 1.5, 0.1]],
