@@ -5,7 +5,7 @@ import { Player } from './player.js';
 import { TrafficCar, makeParked, makeCar } from './vehicles.js';
 import { Controls } from './controls.js';
 import { Missions } from './missions.js';
-import { makeSky, HORIZON } from './sky.js';
+import { makeSky, makeEnvMap, HORIZON } from './sky.js';
 import { NPCs } from './npc.js';
 
 const $ = id => document.getElementById(id);
@@ -79,6 +79,8 @@ const sc = sun.shadow.camera; sc.left = -60; sc.right = 60; sc.top = 60; sc.bott
 sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.6;
 scene.add(sun); scene.add(sun.target);
 const sky = makeSky(scene);
+scene.environment = makeEnvMap(renderer);
+scene.environmentIntensity = 0.9;
 
 const camera = new THREE.PerspectiveCamera(62, 1, 0.5, 600);
 function resize() {
@@ -118,7 +120,7 @@ function spawnTraffic(i) {
 }
 for (let i = 0; i < CFG.trafficCount; i++) traffic.push(spawnTraffic(i));
 
-const npcs = new NPCs(scene, 30);
+const npcs = new NPCs(scene, 26);
 const missions = new Missions(scene, hud, audio);
 const miniBase = drawMinimapBase(264);
 const mini = $('minimap').getContext('2d');
@@ -395,6 +397,7 @@ window.__game = {
     const cols = ['#c0392b', '#f2c200', '#2c3e50', '#e67e22', '#27ae60', '#ecf0f1', '#8e44ad'];
     types.forEach((t, i) => { const m = makeCar(cols[i], t); m.position.set(player.x - 15 + i * 5, 0, player.z + 16); m.rotation.y = 2.5; scene.add(m); });
   },
-  toNpc() { const n = npcs.list[0]; player.x = n.x; player.z = n.z - 8; return [n.x, n.z]; },
+  toNpc(d = 8, i = 0) { const n = npcs.list[i]; player.x = n.x - 2; player.z = n.z - d; return [n.x, n.z]; },
+  lineup() { npcs.list.slice(0, 8).forEach((n, i) => { n.x = player.x - 7 + i * 2; n.z = player.z + 6; n.heading = Math.PI; n.idle = 99; n.mesh.position.set(n.x, 0.34, n.z); n.mesh.rotation.y = Math.PI; }); },
   traffic, parked, scene, camera,
 };

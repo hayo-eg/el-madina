@@ -1,25 +1,103 @@
 import * as THREE from 'three';
 import { CFG, blockCoord } from './config.js';
 
-const SHIRTS = ['#d64545', '#e0a030', '#3aa56b', '#4a78d8', '#9b59b6', '#f0f0f0', '#e67e22', '#2c3e50', '#16a085', '#e84393'];
-const PANTS = ['#26314a', '#3d3a36', '#5a4632', '#1f2a3a', '#4a4f57'];
-const SKINS = ['#e8b98a', '#c98f62', '#8d5a3b', '#f1c7a1'];
 const R = 23;   // sidewalk ring offset from block centre
-const mats = {};
-const m = c => (mats[c] || (mats[c] = new THREE.MeshLambertMaterial({ color: c })));
 const pick = a => a[Math.floor(Math.random() * a.length)];
+const rnd = (a, b) => a + Math.random() * (b - a);
+const MC = {}, GC = {};
+const mat = c => (MC[c] || (MC[c] = new THREE.MeshLambertMaterial({ color: c })));
+function geo(key, fn) { return GC[key] || (GC[key] = fn()); }
+const cyl = (rt, rb, h, seg = 8, oy = 0) => { const g = new THREE.CylinderGeometry(rt, rb, h, seg); g.translate(0, oy, 0); return g; };
 
-function makePerson() {
-  const g = new THREE.Group();
-  const shirt = m(pick(SHIRTS)), pants = m(pick(PANTS)), skin = m(pick(SKINS));
-  const mk = (w, h, d, mt, x, y, z) => { const me = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mt); me.position.set(x, y, z); me.castShadow = true; g.add(me); return me; };
-  mk(0.6, 0.7, 0.34, shirt, 0, 1.05, 0);
-  mk(0.38, 0.4, 0.36, skin, 0, 1.64, 0);
-  mk(0.4, 0.13, 0.38, m(Math.random() < 0.5 ? '#1d1713' : '#4a3626'), 0, 1.88, 0);
-  const leg = (x) => { const geo = new THREE.BoxGeometry(0.22, 0.7, 0.26); geo.translate(0, -0.35, 0); const l = new THREE.Mesh(geo, pants); l.position.set(x, 0.7, 0); l.castShadow = true; g.add(l); return l; };
-  const arm = (x) => { const geo = new THREE.BoxGeometry(0.17, 0.6, 0.2); geo.translate(0, -0.3, 0); const a = new THREE.Mesh(geo, shirt); a.position.set(x, 1.38, 0); g.add(a); return a; };
-  g.userData = { lL: leg(-0.15), lR: leg(0.15), aL: arm(-0.4), aR: arm(0.4) };
-  return g;
+const SKINS = ['#f1c7a1', '#e0ac7e', '#c68b5c', '#a26a45', '#7a4b30'];
+const TOPS = ['#c0392b', '#2e6fb5', '#2f8f5b', '#e0a030', '#f2f2ee', '#34495e', '#8e5ba6', '#d9d4c7', '#e67e22', '#1f2a3a', '#7f8c8d', '#b84a62'];
+const BOTTOMS = ['#26314a', '#3d3a36', '#5a4632', '#1f2a3a', '#4a4f57', '#6b5b45', '#2b3a2f'];
+const HAIRS = ['#15110e', '#2a1d14', '#4a3626', '#6b4a2b', '#8c8c8c'];
+const ROBES = ['#f0ece0', '#cfc6b0', '#7d8a9a', '#3b4658', '#8a6b4a'];
+const HIJABS = ['#1a1a1a', '#7b2d4f', '#2d5a6b', '#d9d3c4', '#4a3a6b', '#2f5d3a'];
+const SHOES = ['#111111', '#3b2a1c', '#e8e8e8', '#27303d'];
+
+export function makePerson(opts) {
+  opts = opts || {};
+  const female = opts.female !== undefined ? opts.female : Math.random() < 0.45;
+  const kind = opts.kind ? opts.kind : female ? (Math.random() < 0.55 ? 'abaya' : (Math.random() < 0.5 ? 'dress' : 'casual')) : (Math.random() < 0.2 ? 'galabeya' : 'casual');
+  const hijab = female && Math.random() < 0.7 && !opts.kind;
+  const long = kind === 'galabeya' || kind === 'abaya' || kind === 'dress';
+  const skin = mat(pick(SKINS));
+  const top = mat(kind === 'galabeya' ? pick(ROBES) : kind === 'abaya' ? pick(['#1a1a1a', '#26303d', '#3b2f3f']) : pick(TOPS));
+  const bottom = mat(pick(BOTTOMS));
+  const shoe = mat(pick(SHOES));
+  const longSleeves = long || Math.random() < 0.35;
+  const sc = rnd(0.93, 1.07) * (female ? 0.95 : 1.0);
+  const wide = rnd(0.92, 1.12);
+
+  const root = new THREE.Group();
+  const body = new THREE.Group();              // scaled body group
+  body.scale.set(sc * wide, sc, sc * wide);
+  root.add(body);
+  const add = (g, m, x, y, z, parent = body, shadow = false) => { const me = new THREE.Mesh(g, m); me.position.set(x, y, z); me.castShadow = shadow; parent.add(me); return me; };
+
+  // torso: tapered, slightly flattened front-to-back
+  const torsoH = long ? 0.62 : 0.56;
+  const tor = add(geo('torso', () => cyl(0.2, 0.165, 0.56, 10, 0)), top, 0, 1.3, 0, body, true);
+  tor.scale.z = 0.62;
+  if (female) tor.scale.x = 0.9;
+  const hips = add(geo('hips', () => cyl(0.17, 0.18, 0.2, 10, 0)), long ? top : bottom, 0, 0.97, 0, body, true);
+  hips.scale.z = 0.66;
+  if (long) {
+    const robe = add(geo('robe', () => cyl(0.18, 0.29, 0.86, 12, 0)), top, 0, 0.62, 0, body, true);
+    robe.scale.z = 0.8;
+    robe.userData.robe = true;
+  }
+  add(geo('neck', () => cyl(0.05, 0.055, 0.09, 8)), skin, 0, 1.6, 0);
+  // head
+  const head = new THREE.Group(); head.position.set(0, 1.72, 0); body.add(head);
+  const face = add(geo('head', () => { const g = new THREE.SphereGeometry(0.112, 14, 12); g.scale(0.92, 1.12, 1.0); return g; }), skin, 0, 0, 0, head, true);
+  add(geo('nose', () => new THREE.BoxGeometry(0.025, 0.04, 0.03)), skin, 0, -0.01, 0.112, head);
+  for (const sx of [-1, 1]) add(geo('eye', () => new THREE.BoxGeometry(0.022, 0.014, 0.01)), mat('#1a1410'), sx * 0.04, 0.025, 0.1, head);
+  add(geo('mouth', () => new THREE.BoxGeometry(0.04, 0.008, 0.01)), mat('#8a4a44'), 0, -0.05, 0.103, head);
+  for (const sx of [-1, 1]) add(geo('ear', () => new THREE.SphereGeometry(0.02, 6, 6)), skin, sx * 0.1, 0, 0, head);
+  if (hijab) {
+    const hm = mat(pick(HIJABS));
+    const hj = add(geo('hijab', () => { const g = new THREE.SphereGeometry(0.135, 14, 12); g.scale(0.98, 1.1, 1.05); return g; }), hm, 0, 0.012, -0.045, head, true);
+    add(geo('hijabs', () => cyl(0.12, 0.2, 0.24, 12, 0)), hm, 0, -0.17, -0.02, head);
+  } else {
+    const hair = mat(pick(HAIRS));
+    const style = female ? pick(['long', 'bun', 'long']) : pick(['short', 'short', 'cap', 'bald', 'curly']);
+    if (style !== 'bald') {
+      add(geo('hcap', () => { const g = new THREE.SphereGeometry(0.12, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55); g.scale(1, 1.1, 1.08); return g; }), hair, 0, 0.012, -0.012, head, true);
+    }
+    if (style === 'long') add(geo('hlong', () => { const g = new THREE.BoxGeometry(0.22, 0.28, 0.08); return g; }), hair, 0, -0.1, -0.09, head);
+    if (style === 'bun') add(geo('bun', () => new THREE.SphereGeometry(0.05, 8, 8)), hair, 0, 0.1, -0.1, head);
+    if (style === 'curly') add(geo('curly', () => new THREE.SphereGeometry(0.135, 8, 8)), hair, 0, 0.04, -0.02, head);
+    if (!female && Math.random() < 0.3) add(geo('beard', () => { const g = new THREE.SphereGeometry(0.1, 10, 8, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.4); g.scale(0.95, 1.0, 0.9); return g; }), mat('#241a14'), 0, -0.02, 0.01, head);
+  }
+
+  // arms: shoulder pivot -> upper arm -> elbow pivot -> forearm + hand
+  const mkArm = sx => {
+    const sh = new THREE.Group(); sh.position.set(sx * 0.235, 1.5, 0); body.add(sh);
+    const sleeve = longSleeves ? top : top;
+    add(geo('shoulder', () => new THREE.SphereGeometry(0.055, 8, 8)), top, 0, 0, 0, sh);
+    add(geo('uarm', () => cyl(0.05, 0.043, 0.3, 8, -0.15)), sleeve, 0, 0, 0, sh, true);
+    const el = new THREE.Group(); el.position.y = -0.3; sh.add(el);
+    add(geo('farm', () => cyl(0.043, 0.036, 0.27, 8, -0.135)), longSleeves ? top : skin, 0, 0, 0, el);
+    add(geo('hand', () => new THREE.SphereGeometry(0.04, 8, 8)), skin, 0, -0.29, 0, el);
+    return { sh, el };
+  };
+  const aL = mkArm(-1), aR = mkArm(1);
+
+  // legs: hip pivot -> thigh -> knee pivot -> shin -> foot
+  const mkLeg = sx => {
+    const hp = new THREE.Group(); hp.position.set(sx * 0.09, 0.93, 0); body.add(hp);
+    add(geo('thigh', () => cyl(0.078, 0.06, 0.46, 8, -0.23)), bottom, 0, 0, 0, hp, true);
+    const kn = new THREE.Group(); kn.position.y = -0.46; hp.add(kn);
+    add(geo('shin', () => cyl(0.058, 0.045, 0.44, 8, -0.22)), long ? skin : bottom, 0, 0, 0, kn, true);
+    add(geo('foot', () => new THREE.BoxGeometry(0.1, 0.07, 0.27)), shoe, 0, -0.46, 0.05, kn);
+    return { hp, kn };
+  };
+  const lL = mkLeg(-1), lR = mkLeg(1);
+  root.userData = { body, tor, head, aL, aR, lL, lR, long };
+  return root;
 }
 
 export class NPCs {
@@ -28,7 +106,7 @@ export class NPCs {
     for (let i = 0; i < count; i++) {
       const mesh = makePerson();
       scene.add(mesh);
-      const n = { mesh, k: 0, l: 0, dir: 1, corner: 0, x: 0, z: 0, speed: 1.5 + Math.random() * 1.2, phase: Math.random() * 6, down: 0, heading: 0 };
+      const n = { mesh, k: 0, l: 0, dir: 1, corner: 0, x: 0, z: 0, speed: rnd(1.1, 2.1), phase: Math.random() * 6, down: 0, heading: 0, stride: rnd(0.8, 1.15), idle: 0 };
       this.respawn(n);
       this.list.push(n);
     }
@@ -56,40 +134,75 @@ export class NPCs {
   update(dt, carObj, px, pz) {
     for (const n of this.list) {
       const g = n.mesh;
+      const near = Math.hypot(n.x - px, n.z - pz);
+      g.visible = near < 120;
       if (n.down > 0) {
         n.down -= dt;
         g.rotation.x = -Math.PI / 2 * Math.min(1, (2.6 - n.down) * 6);
-        g.position.y = 0.34 + 0.2;
+        g.position.y = 0.34 + 0.12;
         if (n.down <= 0) this.respawn(n);
         continue;
       }
-      // hit by a fast car
       if (carObj && Math.abs(carObj.speed) > 5) {
-        const d = Math.hypot(n.x - carObj.x, n.z - carObj.z);
-        if (d < 2.3) { n.down = 2.6; continue; }
+        if (Math.hypot(n.x - carObj.x, n.z - carObj.z) < 2.3) { n.down = 2.6; continue; }
       }
-      // wait if the player is right in front
-      const dpl = Math.hypot(n.x - px, n.z - pz);
       let sp = n.speed;
-      if (dpl < 1.2) sp = 0;
+      if (near < 1.2) sp = 0;
+      // slow down and look around occasionally
+      if (n.idle > 0) { n.idle -= dt; sp = 0; }
+      else if (Math.random() < dt * 0.02) n.idle = rnd(1, 3);
       const c = this.corners(n);
       const tgt = n.dir > 0 ? c[(n.corner + 1) % 4] : c[n.corner];
       const dx = tgt[0] - n.x, dz = tgt[1] - n.z;
       const dist = Math.hypot(dx, dz);
       if (dist < 0.6) { n.corner = (n.corner + (n.dir > 0 ? 1 : 3)) % 4; }
-      else {
+      else if (sp > 0) {
         n.x += dx / dist * sp * dt; n.z += dz / dist * sp * dt;
         const target = Math.atan2(dx, dz);
         let dh = target - n.heading;
         while (dh > Math.PI) dh -= Math.PI * 2; while (dh < -Math.PI) dh += Math.PI * 2;
-        n.heading += dh * Math.min(1, dt * 8);
+        n.heading += dh * Math.min(1, dt * 6);
       }
-      n.phase += dt * sp * 3.2;
-      const sw = sp > 0 ? Math.sin(n.phase) * 0.6 : 0;
+      if (!g.visible) continue;
       const u = g.userData;
-      u.lL.rotation.x = sw; u.lR.rotation.x = -sw; u.aL.rotation.x = -sw * 0.8; u.aR.rotation.x = sw * 0.8;
+      const walking = sp > 0;
+      const k = walking ? 1 : 0;
+      n.phase += dt * sp * 4.2 * n.stride;
+      const p = n.phase;
+      const s = Math.sin(p), c2 = Math.cos(p);
+      const amp = Math.min(1, sp / 1.6) * 0.55 * k;
+      u.lL.hp.rotation.x += ((s * amp) - u.lL.hp.rotation.x) * Math.min(1, dt * 14);
+      u.lR.hp.rotation.x += ((-s * amp) - u.lR.hp.rotation.x) * Math.min(1, dt * 14);
+      u.lL.kn.rotation.x += ((Math.max(0, -c2) * 0.9 * k) - u.lL.kn.rotation.x) * Math.min(1, dt * 14);
+      u.lR.kn.rotation.x += ((Math.max(0, c2) * 0.9 * k) - u.lR.kn.rotation.x) * Math.min(1, dt * 14);
+      u.aL.sh.rotation.x += ((-s * amp * 0.9) - u.aL.sh.rotation.x) * Math.min(1, dt * 14);
+      u.aR.sh.rotation.x += ((s * amp * 0.9) - u.aR.sh.rotation.x) * Math.min(1, dt * 14);
+      u.aL.el.rotation.x = -0.18 - Math.max(0, s) * 0.35 * k;
+      u.aR.el.rotation.x = -0.18 - Math.max(0, -s) * 0.35 * k;
+      u.aL.sh.rotation.z = 0.04; u.aR.sh.rotation.z = -0.04;
+      u.body.position.y = Math.abs(s) * 0.025 * k;
+      u.body.rotation.z = s * 0.025 * k;
+      u.tor.rotation.y = s * 0.12 * k;
+      u.head.rotation.y = n.idle > 0 ? Math.sin(performance.now() / 600 + n.phase) * 0.5 : 0;
       g.position.set(n.x, 0.34, n.z);
       g.rotation.y = n.heading;
     }
   }
+}
+
+// shared walk-cycle animation (used by the player too)
+export function animateWalk(u, p, amp, dt, still) {
+  const s = Math.sin(p), c2 = Math.cos(p), k = still ? 0 : 1, f = Math.min(1, dt * 14);
+  u.lL.hp.rotation.x += ((s * amp * k) - u.lL.hp.rotation.x) * f;
+  u.lR.hp.rotation.x += ((-s * amp * k) - u.lR.hp.rotation.x) * f;
+  u.lL.kn.rotation.x += ((Math.max(0, -c2) * (0.5 + amp) * k) - u.lL.kn.rotation.x) * f;
+  u.lR.kn.rotation.x += ((Math.max(0, c2) * (0.5 + amp) * k) - u.lR.kn.rotation.x) * f;
+  u.aL.sh.rotation.x += ((-s * amp * 0.9 * k) - u.aL.sh.rotation.x) * f;
+  u.aR.sh.rotation.x += ((s * amp * 0.9 * k) - u.aR.sh.rotation.x) * f;
+  u.aL.el.rotation.x = -0.18 - Math.max(0, s) * 0.35 * k * (0.6 + amp);
+  u.aR.el.rotation.x = -0.18 - Math.max(0, -s) * 0.35 * k * (0.6 + amp);
+  u.aL.sh.rotation.z = 0.04; u.aR.sh.rotation.z = -0.04;
+  u.body.position.y = Math.abs(s) * 0.03 * k;
+  u.body.rotation.z = s * 0.025 * k;
+  u.tor.rotation.y = s * 0.12 * k;
 }

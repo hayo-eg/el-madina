@@ -54,3 +54,25 @@ export function makeSky(scene) {
     },
   };
 }
+
+// small procedural environment (sky gradient) so metallic car paint and glass reflect something
+export function makeEnvMap(renderer) {
+  const es = new THREE.Scene();
+  const g = new THREE.SphereGeometry(50, 16, 12);
+  const col = [];
+  const pos = g.attributes.position;
+  const top = new THREE.Color('#4f93e0'), hor = new THREE.Color(HORIZON), gr = new THREE.Color('#8c7a5c');
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i) / 50;
+    const c = y >= 0 ? hor.clone().lerp(top, Math.pow(y, 0.6)) : hor.clone().lerp(gr, Math.min(1, -y * 3));
+    col.push(c.r, c.g, c.b);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  es.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  const sunMesh = new THREE.Mesh(new THREE.SphereGeometry(5, 8, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(8, 7, 5) }));
+  sunMesh.position.set(30, 35, 20); es.add(sunMesh);
+  const pm = new THREE.PMREMGenerator(renderer);
+  const rt = pm.fromScene(es, 0.02);
+  pm.dispose();
+  return rt.texture;
+}
