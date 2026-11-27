@@ -19,7 +19,7 @@ export const CFG = {
 };
 
 export function span() { return CFG.grid * (CFG.block + CFG.road) + CFG.road; }
-CFG.bounds = span() / 2 + 46;
+CFG.bounds = span() / 2 + 32;
 
 // road line center coordinate, i in 0..grid
 export function roadCoord(i) { return -span() / 2 + CFG.road / 2 + i * (CFG.block + CFG.road); }

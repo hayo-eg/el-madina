@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CFG, blockCoord } from './config.js';
+import { CFG, blockCoord, clamp, collideCircleAABBs } from './config.js';
 
 const R = 23;   // sidewalk ring offset from block centre
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -18,6 +18,15 @@ const HAIRS = ['#15110e', '#2a1d14', '#4a3626', '#6b4a2b', '#8c8c8c'];
 const ROBES = ['#f0ece0', '#cfc6b0', '#7d8a9a', '#3b4658', '#8a6b4a'];
 const HIJABS = ['#1a1a1a', '#7b2d4f', '#2d5a6b', '#d9d3c4', '#4a3a6b', '#2f5d3a'];
 const SHOES = ['#111111', '#3b2a1c', '#e8e8e8', '#27303d'];
+
+let _bt = null;
+function bubbleTex() {
+  if (_bt) return _bt;
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  g.fillStyle = '#ff3b3b'; g.beginPath(); g.arc(32, 32, 28, 0, 7); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 4; g.stroke();
+  g.fillStyle = '#fff'; g.font = 'bold 44px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('!', 32, 35);
+  return (_bt = new THREE.CanvasTexture(c));
+}
 
 export function makePerson(opts) {
   opts = opts || {};
@@ -116,17 +125,25 @@ export function makePerson(opts) {
     return { hp, kn };
   };
   const lL = mkLeg(-1), lR = mkLeg(1);
-  root.userData = { body, tor, head, aL, aR, lL, lR, long };
+  // cheap far-LOD stand-in (3 meshes instead of ~60)
+  const low = new THREE.Group();
+  const lt = new THREE.Mesh(geo('lowT', () => new THREE.BoxGeometry(0.36, 0.62, 0.22)), top); lt.position.y = 1.28;
+  const ll = new THREE.Mesh(geo('lowL', () => new THREE.BoxGeometry(0.22, 0.86, 0.2)), long ? top : bottom); ll.position.y = 0.5;
+  const lh = new THREE.Mesh(geo('lowH', () => new THREE.SphereGeometry(0.115, 8, 6)), skin); lh.position.y = 1.72;
+  low.add(lt, ll, lh); low.scale.copy(body.scale); low.visible = false; root.add(low);
+  const bub = new THREE.Sprite(new THREE.SpriteMaterial({ map: bubbleTex(), depthTest: false, transparent: true }));
+  bub.scale.set(0.5, 0.5, 1); bub.position.y = 2.45; bub.visible = false; bub.renderOrder = 997; root.add(bub);
+  root.userData = { body, tor, head, aL, aR, lL, lR, long, low, bub };
   return root;
 }
 
 export class NPCs {
   constructor(scene, count) {
-    this.list = []; this.pendingHits = 0;
+    this.list = []; this.pendingHits = 0; this.colliders = []; this.rp = 0;
     for (let i = 0; i < count; i++) {
       const mesh = makePerson();
       scene.add(mesh);
-      const n = { mesh, k: 0, l: 0, dir: 1, corner: 0, x: 0, z: 0, speed: rnd(1.1, 2.1), phase: Math.random() * 6, down: 0, downMax: 2.6, hp: 100, hpMax: 100, panic: 0, stagger: 0, barT: 0, crime: false, carCool: 0, heading: 0, stride: rnd(0.8, 1.15), idle: 0 };
+      const n = { mesh, k: 0, l: 0, dir: 1, corner: 0, x: 0, z: 0, speed: rnd(1.1, 2.1), phase: Math.random() * 6, down: 0, downMax: 2.6, hp: 100, hpMax: 100, brave: i % 3 !== 2, flee: 0, fx: 0, fz: 0, fight: 0, panic: 0, stagger: 0, barT: 0, crime: false, carCool: 0, heading: 0, stride: rnd(0.8, 1.15), idle: 0 };
       this.respawn(n);
       this.list.push(n);
     }
@@ -151,30 +168,66 @@ export class NPCs {
     n.mesh.position.set(n.x, 0.34, n.z);
   }
 
-  hit(n, dmg) {
+  hit(n, dmg, src, sx, sz) {
     if (n.down > 0) return false;
     n.hp -= dmg; n.barT = 3.5; n.crime = true;
-    if (n.hp <= 0) { n.hp = 0; n.down = n.downMax = 5; return true; }
-    if (n.brave === undefined) n.brave = Math.random() < 0.35;
-    if (n.brave) { n.fight = 9; n.panic = 0; } else n.panic = 6;
-    n.stagger = 0.35; return false;
+    if (n.hp <= 0) { n.hp = 0; n.down = n.downMax = 5; n.flee = 0; n.fight = 0; return true; }
+    n.stagger = 0.35;
+    if (src === 'punch' && n.brave) { n.fight = 10; n.flee = 0; }
+    else { n.fight = 0; n.flee = 7; n.fx = sx === undefined ? n.x : sx; n.fz = sz === undefined ? n.z + 1 : sz; }
+    return false;
   }
 
-  // gunshot / violence nearby: everyone close scatters
+  // put a pedestrian back on the nearest sidewalk loop
+  snap(n) {
+    const P = CFG.block + CFG.road;
+    n.k = clamp(Math.round((n.x - blockCoord(0)) / P), 0, CFG.grid - 1);
+    n.l = clamp(Math.round((n.z - blockCoord(0)) / P), 0, CFG.grid - 1);
+    const cx = blockCoord(n.k), cz = blockCoord(n.l), dx = n.x - cx, dz = n.z - cz;
+    if (Math.abs(dx) > Math.abs(dz)) { n.x = cx + Math.sign(dx || 1) * R; n.z = cz + clamp(dz, -R, R); n.corner = dx > 0 ? 1 : 3; }
+    else { n.z = cz + Math.sign(dz || 1) * R; n.x = cx + clamp(dx, -R, R); n.corner = dz > 0 ? 2 : 0; }
+  }
+
+  // keep the crowd around the player: move far pedestrians to sidewalks near them
+  recycle(px, pz) {
+    const P = CFG.block + CFG.road;
+    for (let c = 0; c < 6; c++) {
+      this.rp = (this.rp + 1) % this.list.length;
+      const n = this.list[this.rp];
+      if (n.down > 0 || n.fight > 0 || n.flee > 0 || Math.hypot(n.x - px, n.z - pz) < 90) continue;
+      for (let t = 0; t < 8; t++) {
+        n.k = clamp(Math.round((px - blockCoord(0)) / P) + Math.floor(Math.random() * 5) - 2, 0, CFG.grid - 1);
+        n.l = clamp(Math.round((pz - blockCoord(0)) / P) + Math.floor(Math.random() * 5) - 2, 0, CFG.grid - 1);
+        n.corner = Math.floor(Math.random() * 4); n.dir = Math.random() < 0.5 ? 1 : -1;
+        const cs = this.corners(n), a = cs[n.corner], b = cs[(n.corner + 1) % 4], tt = Math.random();
+        n.x = a[0] + (b[0] - a[0]) * tt; n.z = a[1] + (b[1] - a[1]) * tt;
+        const d = Math.hypot(n.x - px, n.z - pz);
+        if (d > 14 && d < 78) break;
+      }
+      n.panic = 0; n.mesh.position.set(n.x, 0.34, n.z);
+    }
+  }
+
+  // gunshot / violence nearby: everyone close runs away from the source (not tied to aim)
   alarm(x, z, r) {
     for (const n of this.list) {
       if (n.down > 0 || n.fight > 0) continue;
-      if (Math.hypot(n.x - x, n.z - z) < r) { n.panic = Math.max(n.panic, 5 + Math.random() * 3); n.fight = 0; n.idle = 0; }
+      const d = Math.hypot(n.x - x, n.z - z);
+      if (d < r) { n.flee = Math.max(n.flee, 5 + Math.random() * 3); n.fx = x; n.fz = z; n.idle = 0; n.stagger = Math.min(n.stagger, 0.05 + d * 0.004); }
     }
   }
 
   knock(n, fx, fz, d) { n.x += fx * d; n.z += fz * d; }
 
   update(dt, carObj, px, pz) {
+    this.recycle(px, pz);
     for (const n of this.list) {
       const g = n.mesh;
       const near = Math.hypot(n.x - px, n.z - pz);
-      g.visible = near < 120;
+      g.visible = near < 95;
+      const far = near > 30, U = g.userData;
+      if (U.body.visible === far) { U.body.visible = !far; U.low.visible = far; }
+      U.bub.visible = n.flee > 0 || n.fight > 0;
       if (n.down > 0) {
         n.down -= dt;
         g.rotation.x = -Math.PI / 2 * Math.min(1, (n.downMax - n.down) * 6);
@@ -183,18 +236,32 @@ export class NPCs {
         continue;
       }
       if (carObj && Math.abs(carObj.speed) > 5) {
-        if (n.carCool <= 0 && Math.hypot(n.x - carObj.x, n.z - carObj.z) < 2.3) { n.carCool = 0.8; this.hit(n, 30 + Math.abs(carObj.speed) * 4); if (n.down > 0) continue; }
+        if (n.carCool <= 0 && Math.hypot(n.x - carObj.x, n.z - carObj.z) < 2.3) { n.carCool = 0.8; this.hit(n, 30 + Math.abs(carObj.speed) * 4, 'car', carObj.x, carObj.z); if (n.down > 0) continue; }
       }
       n.carCool -= dt; n.barT -= dt; n.atkCool = (n.atkCool || 0) - dt;
+      if (n.flee > 0) {
+        n.flee -= dt;
+        if (n.stagger > 0) n.stagger -= dt;
+        else {
+          const dx = n.x - n.fx, dz = n.z - n.fz, d = Math.hypot(dx, dz) || 1;
+          const c = collideCircleAABBs(n.x + dx / d * 5.8 * dt, n.z + dz / d * 5.8 * dt, 0.5, this.colliders);
+          if (c.hit) { n.fx += (Math.random() - 0.5) * 30; n.fz += (Math.random() - 0.5) * 30; }
+          n.x = c.x; n.z = c.z; n.heading = Math.atan2(dx, dz); n.phase += dt * 15;
+        }
+        g.position.set(n.x, 0.34, n.z); g.rotation.y = n.heading;
+        if (!far) animateWalk(U, n.phase, 1.0, dt, false);
+        if (n.flee <= 0) this.snap(n);
+        continue;
+      }
       if (n.fight > 0) {
         n.fight -= dt;
         const dx = px - n.x, dz = pz - n.z, d = Math.hypot(dx, dz) || 1;
         n.heading = Math.atan2(dx, dz);
         if (n.stagger > 0) n.stagger -= dt;
-        else if (d > 1.5) { n.x += dx / d * 3.4 * dt; n.z += dz / d * 3.4 * dt; n.phase += dt * 10; }
-        else if (n.atkCool <= 0) { n.atkCool = 1.1; n.atkT = 0.28; this.pendingHits += 6; }
-        if (g.visible) {
-          const u = g.userData; const k = d > 1.5 && n.stagger <= 0 ? 1 : 0;
+        else if (d > 1.7) { n.x += dx / d * 4.4 * dt; n.z += dz / d * 4.4 * dt; n.phase += dt * 11; }
+        else if (n.atkCool <= 0) { n.atkCool = 1.0; n.atkT = 0.28; this.pendingHits += 5; }
+        if (g.visible && !far) {
+          const u = g.userData; const k = d > 1.7 && n.stagger <= 0 ? 1 : 0;
           const s = Math.sin(n.phase);
           u.lL.hp.rotation.x = s * 0.7 * k; u.lR.hp.rotation.x = -s * 0.7 * k;
           if (n.atkT > 0) { n.atkT -= dt; u.aR.sh.rotation.x = -1.5 * Math.sin(Math.PI * (1 - n.atkT / 0.28)); u.aL.sh.rotation.x = -0.7; }
@@ -222,7 +289,8 @@ export class NPCs {
         while (dh > Math.PI) dh -= Math.PI * 2; while (dh < -Math.PI) dh += Math.PI * 2;
         n.heading += dh * Math.min(1, dt * 6);
       }
-      if (!g.visible) continue;
+      g.position.set(n.x, 0.34, n.z); g.rotation.y = n.heading;
+      if (!g.visible || far) continue;
       const u = g.userData;
       const walking = sp > 0;
       const k = walking ? 1 : 0;

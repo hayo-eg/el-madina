@@ -166,7 +166,7 @@ renderer.shadowMap.enabled = !!S.shadows;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(HORIZON);
-scene.fog = new THREE.Fog(HORIZON, 90, 330);
+scene.fog = new THREE.Fog(HORIZON, 110, 420);
 scene.add(new THREE.HemisphereLight('#ffc4e4', '#6a4a8a', 1.0));
 const sun = new THREE.DirectionalLight('#ffbf9a', 1.7);
 const SUN_OFF = new THREE.Vector3(55, 62, 95);
@@ -179,7 +179,7 @@ const sky = makeSky(scene);
 scene.environment = makeEnvMap(renderer);
 scene.environmentIntensity = 0.9;
 
-const camera = new THREE.PerspectiveCamera(62, 1, 0.5, 600);
+const camera = new THREE.PerspectiveCamera(62, 1, 0.5, 1600);
 function resize() {
   const vv = window.visualViewport;
   const w = Math.round(vv ? vv.width : window.innerWidth), h = Math.round(vv ? vv.height : window.innerHeight);
@@ -231,9 +231,10 @@ function applyTraffic() {
 }
 applyTraffic();
 
-const npcs = new NPCs(scene, 46);
+const npcs = new NPCs(scene, 110);
+npcs.colliders = colliders;
 const allNpcs = npcs.list.slice();
-const NPC_N = { low: 14, normal: 28, high: 46 };
+const NPC_N = { low: 28, normal: 70, high: 110 };
 function applyNpc() {
   const n = NPC_N[S.npc] || 28;
   npcs.list = allNpcs.slice(0, n);
@@ -369,7 +370,7 @@ function shoot() {
   camera.getWorldDirection(_v3);
   const hl = Math.hypot(_v3.x, _v3.z) || 1, slope = _v3.y / hl;
   audio.shot(cur);
-  npcs.alarm(player.x, player.z, cur === 3 ? 55 : 40);
+  npcs.alarm(player.x, player.z, cur === 3 ? 70 : 55);
   camKick = Math.min(0.05, camKick + 0.012 * (cur === 3 ? 3 : 1));
   for (let p = 0; p < w.pellets; p++) {
     const a = yaw + (Math.random() - 0.5) * 2 * w.spread;
@@ -381,7 +382,7 @@ function shoot() {
     police.tracer(ox, 1.25, oz, ox + dx * dist, t ? clamp(ey, 0.4, 1.7) : ey, oz + dz * dist);
     if (t) {
       spark(ox + dx * dist, clamp(ey, 0.4, 1.7), oz + dz * dist);
-      if (t.kind === 'npc') npcs.hit(t.obj, w.dmg * (w.pellets > 1 ? 1.4 : 1.5));
+      if (t.kind === 'npc') npcs.hit(t.obj, w.dmg * (w.pellets > 1 ? 1.4 : 1.5), 'gun', player.x, player.z);
       else if (t.kind === 'officer') { t.obj.hp -= w.dmg; t.obj.barT = 3.5; wantStars(Math.max(stars, 2)); if (t.obj.hp <= 0) wantStars(stars + 1); }
       else if (t.kind === 'pcar') { t.obj.hp -= w.dmg; wantStars(Math.max(stars, 2)); }
     }
@@ -401,7 +402,7 @@ function punch() {
   const t = police.target(ox + dx * 0.2, oz + dz * 0.2, dx, dz, 2.2, npcs.list);
   if (t) {
     audio.punch(); spark(ox + dx * t.dist, 1.3, oz + dz * t.dist, '#fff2b0');
-    if (t.kind === 'npc') { npcs.hit(t.obj, 22); npcs.knock(t.obj, dx, dz, 0.9); npcs.alarm(t.obj.x, t.obj.z, 14); }
+    if (t.kind === 'npc') { npcs.hit(t.obj, 22, 'punch', player.x, player.z); npcs.knock(t.obj, dx, dz, 0.9); npcs.alarm(t.obj.x, t.obj.z, 14); }
     else if (t.kind === 'officer') { t.obj.hp -= 20; t.obj.barT = 3.5; wantStars(Math.max(stars, 2)); if (t.obj.hp <= 0) wantStars(stars + 1); }
   }
 }
@@ -845,6 +846,7 @@ function loop(now) {
     else if (frames % 2 === 1 && frames < 3) radar.draw(radarInfo(), gameT);
   }
 
+  city.update(performance.now() / 1000);
   updateCamera(dt);
   if (!paused) { updateSmoke(dt); updateSparks(dt); updateBars(); }
   sky.update(dt, camera.position);
