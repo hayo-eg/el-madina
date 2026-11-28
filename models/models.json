@@ -1,0 +1,7 @@
+{ "height": 1.78, "hero": "hero.glb", "police": ["police.glb"],
+  "npcs": [ {"file": "npc_01.glb", "gender": "m"},
+            {"file": "npc_02.glb", "gender": "m"},
+            {"file": "npc_03.glb", "gender": "f", "height": 1.65},
+            {"file": "npc_04.glb", "gender": "m", "height": 1.68},
+            {"file": "npc_05.glb", "gender": "m", "height": 1.72},
+            {"file": "npc_06.glb", "gender": "m"} ] }

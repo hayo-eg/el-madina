@@ -1,4 +1,4 @@
-const DEF = { voice: true, quality: 'auto', handling: 'realistic', steer: 1, camDist: 1, volume: 0.8, shadows: true, hiRes: false, npc: 'high', traffic: 'normal', police: 'normal', autoAim: false, shoulder: false, radio: true, kmh: true };
+const DEF = { hdHero: true, voice: true, quality: 'auto', handling: 'realistic', steer: 1, camDist: 1, volume: 0.8, shadows: true, hiRes: false, npc: 'high', traffic: 'normal', police: 'normal', autoAim: false, shoulder: false, radio: true, kmh: true };
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem('madina_settings') || '{}'); } catch (e) {}
 export const S = Object.assign({}, DEF, saved);
@@ -15,6 +15,7 @@ const ROWS = [
   ['traffic', 'كثافة العربيات', 'select', [['low', 'خفيف'], ['normal', 'عادي'], ['high', 'زحمة']]],
   ['autoAim', 'مساعدة التصويب (خفيفة)', 'check'],
   ['shoulder', 'كاميرا فوق الكتف عند التصويب', 'check'],
+  ['hdHero', 'الشخصية الواقعية (إلغاؤها يرجّع الشخصية اللي بتتغير بالمحلات)', 'check'],
   ['voice', 'صوت الحوار في المشاهد (لو الموبايل فيه صوت عربي)', 'check'],
   ['radio', 'راديو (موسيقى الثمانينات)', 'check'],
   ['shadows', 'الظلال', 'check'],

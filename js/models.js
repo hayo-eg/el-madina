@@ -1,3 +1,4 @@
+import { S } from './settings.js';
 // Imported character models (GLB). Optional: if models/models.json is missing, the game uses the procedural characters.
 // models.json: { "height": 1.78, "hero": "hero.glb", "police": ["police.glb"], "npcs": ["npc_01.glb", {"file":"npc_02.glb","gender":"f","height":1.65,"yaw":0}] }
 import * as THREE from 'three';
@@ -27,6 +28,9 @@ function normalize(gltf, entry, baseH) {
         if (m.metalness !== undefined) { m.metalness = Math.min(m.metalness, 0.1); m.roughness = Math.max(m.roughness, 0.7); }
         if (m.map) { m.map.anisotropy = 2; const im = m.map.image; if (im && im.width) texMax = Math.max(texMax, im.width, im.height); }
         m.envMapIntensity = 0;
+        // glTF BLEND layers (skin, clothes, eyes, hair) sort wrongly and show the background through the body: make solids opaque, cut hair/eyes/brows with alpha test
+        const nm = (m.name || '').toLowerCase(), cut = /eyebrow|eyelash|lash|hair|short|long|beard|stache|low-poly|eye|hijab|cap|beret/.test(nm) && !/body|suit|shoes|skin|apron/.test(nm);
+        m.transparent = false; m.depthWrite = true; m.opacity = 1; m.alphaTest = cut ? 0.45 : 0; m.side = THREE.FrontSide; m.needsUpdate = true;
       }
     }
   });
@@ -39,7 +43,7 @@ export async function initModels(ver) {
   const loader = new GLTFLoader(), dr = new DRACOLoader(); dr.setDecoderPath('./lib/draco/'); loader.setDRACOLoader(dr); loader.setMeshoptDecoder(MeshoptDecoder);
   const load = async (e, role) => {
     const entry = typeof e === 'string' ? { file: e } : e;
-    try { const g = await loader.loadAsync('./models/' + entry.file + '?v=' + ver); const t = normalize(g, entry, man.height); t.role = role; Models.stats.push(t.stats); return t; }
+    try { const g = await loader.loadAsync('./models/' + entry.file + '?v=' + ver); const t = normalize(g, entry, man.height); t.role = role; Models.stats.push(t.stats); Models.byFile[t.file] = t; return t; }
     catch (err) { Models.errors.push(entry.file + ': ' + err.message); return null; }
   };
   if (man.hero) Models.hero = await load(man.hero, 'hero');
@@ -53,8 +57,9 @@ export async function initModels(ver) {
 export function pickTemplate(opts) {
   if (!Models.ready) return null;
   const role = (opts && opts.role) || 'npc';
+  if (opts && opts.glb && Models.byFile[opts.glb]) return Models.byFile[opts.glb];
   if (role === 'story') return null;
-  if (role === 'hero') return (opts.glb && Models.byFile[opts.glb]) || Models.hero;
+  if (role === 'hero') return (S.hdHero === false) ? null : Models.hero;
   if (role === 'police') return Models.police.length ? pick(Models.police) : null;
   if (!Models.npcs.length) return null;
   const g = opts && opts.female !== undefined ? (opts.female ? 'f' : 'm') : null;

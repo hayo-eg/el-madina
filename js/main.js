@@ -203,7 +203,7 @@ resize();
 
 // ---------- World ----------
 window.__models = Models;
-window.__loadModels = () => { if (window.__modelsP) return window.__modelsP; return window.__modelsP = initModels(window.GAME_VERSION || '0').then(() => { if (Models.ready && typeof player !== 'undefined') player.rebuild(lookOpts(shops.look)); return Models; }); };
+window.__loadModels = () => { if (window.__modelsP) return window.__modelsP; return window.__modelsP = initModels(window.GAME_VERSION || '0').then(() => { if (Models.ready && typeof player !== 'undefined') { player.rebuild(lookOpts(shops.look)); npcs.rebuildAll(scene); } return Models; }).catch(() => Models); };
 const city = buildCity(scene);
 const colliders = city.colliders;
 const controls = new Controls();
@@ -944,8 +944,7 @@ $('startBtn').addEventListener('click', () => {
   if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume();
   $('start').style.display = 'none';
   started = true;
-  setTimeout(() => window.__loadModels(), 1500);
-  setTimeout(() => story.begin(), 700);
+  Promise.race([window.__loadModels(), new Promise(r => setTimeout(r, 9000))]).then(() => story.begin());
   missions._banner();
   if (S.radio) { audio.radio(true); banner('راديو ماينا FM', '#ff7ac8', 2200); }
 });

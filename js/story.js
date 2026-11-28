@@ -14,12 +14,12 @@ const MURAD_P = sw(1, 1, 2, 0), WAREH = sw(6, 5, 0, 0);
 
 // ---------------------------------------------------------------- cast
 const LOOK = {
-  saber: { female: false, kind: 'galabeya', old: true, skin: '#b07a50', hair: '#8c8c8c', style: 'short', stache: true, beard: 'stubble', top: '#d8d0bc', scale: 0.97, glasses: 'none' },
-  gamal: { female: false, kind: 'casual', skin: '#b07a50', hair: '#15110e', style: 'short', stache: true, beard: 'stubble', shirt: 'polo', top: '#2f4f6f', bottom: '#2b2b33', hat: 'cap', hatColor: '#3a3a3a', glasses: 'none', noOld: true },
-  hala: { female: true, kind: 'casual', hijab: true, skin: '#e6b68a', hair: '#2a1d14', style: 'long', shirt: 'solid', top: '#3d6b6b', bottom: '#2a2a35', glasses: 'none', noOld: true },
-  murad: { female: false, kind: 'casual', uniform: 'police', skin: '#cf9a6a', hair: '#15110e', style: 'short', stache: true, glasses: 'none', noOld: true, scale: 1.04 },
-  fathy: { female: false, kind: 'casual', old: true, skin: '#cf9a6a', hair: '#8c8c8c', style: 'side', stache: true, beard: 'goatee', shirt: 'solid', top: '#9aa0ae', bottom: '#6b707e', glasses: 'specs', scale: 1.0 },
-  zizo: { female: false, kind: 'casual', skin: '#cf9a6a', hair: '#15110e', style: 'curly', shirt: 'jersey', top: '#d93a3a', c2: '#ffffff', bottom: '#2a3a66', scale: 0.9, glasses: 'none', noOld: true },
+  saber: { glb: 'npc_02.glb', female: false, kind: 'galabeya', old: true, skin: '#b07a50', hair: '#8c8c8c', style: 'short', stache: true, beard: 'stubble', top: '#d8d0bc', scale: 0.97, glasses: 'none' },
+  gamal: { glb: 'npc_01.glb', female: false, kind: 'casual', skin: '#b07a50', hair: '#15110e', style: 'short', stache: true, beard: 'stubble', shirt: 'polo', top: '#2f4f6f', bottom: '#2b2b33', hat: 'cap', hatColor: '#3a3a3a', glasses: 'none', noOld: true },
+  hala: { glb: 'npc_03.glb', female: true, kind: 'casual', hijab: true, skin: '#e6b68a', hair: '#2a1d14', style: 'long', shirt: 'solid', top: '#3d6b6b', bottom: '#2a2a35', glasses: 'none', noOld: true },
+  murad: { glb: 'police.glb', female: false, kind: 'casual', uniform: 'police', skin: '#cf9a6a', hair: '#15110e', style: 'short', stache: true, glasses: 'none', noOld: true, scale: 1.04 },
+  fathy: { glb: 'npc_06.glb', female: false, kind: 'casual', old: true, skin: '#cf9a6a', hair: '#8c8c8c', style: 'side', stache: true, beard: 'goatee', shirt: 'solid', top: '#9aa0ae', bottom: '#6b707e', glasses: 'specs', scale: 1.0 },
+  zizo: { glb: 'npc_04.glb', female: false, kind: 'casual', skin: '#cf9a6a', hair: '#15110e', style: 'curly', shirt: 'jersey', top: '#d93a3a', c2: '#ffffff', bottom: '#2a3a66', scale: 0.9, glasses: 'none', noOld: true },
   goon1: { female: false, kind: 'casual', skin: '#80523a', hair: '#15110e', style: 'bald', beard: 'full', shirt: 'solid', top: '#15161a', bottom: '#222222', glasses: 'shades', scale: 1.06, noOld: true },
   goon2: { female: false, kind: 'casual', skin: '#e6b68a', hair: '#15110e', style: 'fade', beard: 'stubble', shirt: 'solid', top: '#1b1b20', bottom: '#222222', glasses: 'shades', scale: 1.02, noOld: true },
   off1: { female: false, kind: 'casual', uniform: 'police', skin: '#b07a50', hair: '#15110e', style: 'short', stache: true, glasses: 'none', noOld: true },
@@ -419,8 +419,8 @@ export class Story {
     const type = b.cam || ((c.i % 2) ? 'close' : 'over'), k = 1 - f * 0.14, sway = Math.sin(performance.now() / 1700) * 0.05;
     const side = c.i % 2 ? 1 : -1;
     let pos, look, fov;
-    if (type === 'close') { const d = 1.75 * k; pos = [S_.x + dx * d * 0.9 + px * d * 0.5 * side, hS + 0.0 + sway, S_.z + dz * d * 0.9 + pz * d * 0.5 * side]; look = [S_.x, hS - 0.04, S_.z]; fov = 33; }
-    else if (type === 'over') { const d = 1.35; pos = [L_.x - dx * d + px * 0.7 * side, hL + 0.12 + sway, L_.z - dz * d + pz * 0.5 * side]; look = [S_.x, hS - 0.05, S_.z]; fov = 40; }
+    if (type === 'close') { const d = 1.75 * k; pos = [S_.x + dx * d * 0.9 + px * d * 0.5 * side, hS + 0.0 + sway, S_.z + dz * d * 0.9 + pz * d * 0.5 * side]; look = [S_.x, hS - 0.16, S_.z]; fov = 33; }
+    else if (type === 'over') { const d = 1.35; pos = [L_.x - dx * d + px * 0.7 * side, hL + 0.12 + sway, L_.z - dz * d + pz * 0.5 * side]; look = [S_.x, hS - 0.14, S_.z]; fov = 40; }
     else if (type === 'low') { const d = 2.5 * k; pos = [S_.x + dx * d + px * 0.9 * side, 1.0, S_.z + dz * d + pz * 0.9 * side]; look = [S_.x, hS + 0.05, S_.z]; fov = 44; }
     else if (type === 'two') { const mx = (S_.x + L_.x) / 2, mz = (S_.z + L_.z) / 2, d = (3.6 + dl * 0.5) * k; pos = [mx + px * d * side, 1.9 + sway, mz + pz * d * side]; look = [mx, 1.7, mz]; fov = 46; }
     else { // wide: frame everyone in the scene

@@ -73,6 +73,10 @@ export class NPCs {
     }
   }
 
+  rebuildAll(scene) {
+    for (const n of this.list) { const old = n.mesh, vis = old.visible; scene.remove(old); const m = makePerson(); m.visible = vis; m.position.copy(old.position); m.rotation.copy(old.rotation); scene.add(m); n.mesh = m; }
+  }
+
   say(n, text, dur = 2.6, force) {
     let b = this.bubbles.find(q => q.n === n);
     if (!b) b = this.bubbles.find(q => q.t <= 0) || (force ? this.bubbles.reduce((a, q) => (q.t < a.t ? q : a)) : null);
