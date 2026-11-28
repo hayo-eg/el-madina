@@ -8,6 +8,7 @@ import { Missions } from './missions.js';
 import { makeSky, makeEnvMap, HORIZON } from './sky.js';
 import { NPCs } from './npc.js';
 import { initModels, Models } from './models.js';
+import { lookOpts } from './customize.js';
 import { Shops } from './shops.js';
 import { Radar } from './radar.js';
 import { Police } from './police.js';
@@ -200,7 +201,8 @@ window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 resize();
 
 // ---------- World ----------
-await initModels(window.GAME_VERSION || '0'); window.__models = Models;
+window.__models = Models;
+window.__loadModels = () => { if (window.__modelsP) return window.__modelsP; return window.__modelsP = initModels(window.GAME_VERSION || '0').then(() => { if (Models.ready && typeof player !== 'undefined') player.rebuild(lookOpts(shops.look)); return Models; }); };
 const city = buildCity(scene);
 const colliders = city.colliders;
 const controls = new Controls();
@@ -908,6 +910,7 @@ $('startBtn').addEventListener('click', () => {
   if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume();
   $('start').style.display = 'none';
   started = true;
+  setTimeout(() => window.__loadModels(), 1500);
   missions._banner();
   if (S.radio) { audio.radio(true); banner('راديو ماينا FM', '#ff7ac8', 2200); }
 });
