@@ -203,7 +203,7 @@ resize();
 
 // ---------- World ----------
 window.__models = Models;
-window.__loadModels = () => { if (window.__modelsP) return window.__modelsP; return window.__modelsP = initModels(window.GAME_VERSION || '0').then(() => { if (Models.ready && typeof player !== 'undefined') { player.rebuild(lookOpts(shops.look)); npcs.rebuildAll(scene); } return Models; }).catch(() => Models); };
+window.__loadModels = () => { if (window.__modelsP) return window.__modelsP; return window.__modelsP = initModels(window.GAME_VERSION || '0').then(() => { if (Models.ready && typeof player !== 'undefined') { player.rebuild(lookOpts(shops.look)); npcs.rebuildAll(scene); if (Models.variantsP) Models.variantsP.then(() => { try { player.rebuild(lookOpts(shops.look)); } catch (e) {} }); } return Models; }).catch(() => Models); };
 const city = buildCity(scene);
 const colliders = city.colliders;
 const controls = new Controls();

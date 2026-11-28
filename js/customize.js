@@ -8,16 +8,17 @@ export const HAIR = [
 ];
 export const HAIRCOL = ['#15110e', '#2a1d14', '#4a3626', '#6b4a2b', '#8c8c8c'];
 export const TOPS = [
-  { id: 't1', n: 'تيشيرت كحلي', p: 60, o: { shirt: 'solid', top: '#24325a', sleeves: false } },
+  { id: 't1', n: 'تيشيرت أزرق', p: 60, glb: 'hero_bluetee.glb', o: { shirt: 'solid', top: '#24325a', sleeves: true } },
   { id: 't2', n: 'تيشيرت مقلّم', p: 70, o: { shirt: 'stripe', top: '#f2efe6', c2: '#c0392b', sleeves: false } },
   { id: 't3', n: 'تيشيرت كورة', p: 90, o: { shirt: 'jersey', top: '#2b6cb0', c2: '#ffffff', sleeves: false } },
   { id: 't4', n: 'بولو أخضر', p: 100, o: { shirt: 'polo', top: '#2f6b3f', sleeves: false } },
-  { id: 't5', n: 'هودي رمادي', p: 130, o: { shirt: 'hoodie', top: '#4a4d52', sleeves: true } },
+  { id: 't5', n: 'هودي رمادي', p: 130, glb: 'hero_hoodie.glb', o: { shirt: 'hoodie', top: '#4a4d52', sleeves: true } },
   { id: 't6', n: 'قميص جينز', p: 120, o: { shirt: 'vstripe', top: '#8fb3d6', c2: '#ffffff', sleeves: true } },
   { id: 't7', n: 'قميص كاروهات', p: 120, o: { shirt: 'check', top: '#b8262a', c2: '#151515', sleeves: true } },
   { id: 't8', n: 'تيشيرت أسود برسمة', p: 110, o: { shirt: 'tee', top: '#141414', c2: '#d4b074', sleeves: false } },
   { id: 't9', n: 'هينلي زيتي', p: 110, o: { shirt: 'polo', top: '#5f6b3c', sleeves: true } },
   { id: 't10', n: 'جاكيت رياضي', p: 150, o: { shirt: 'vstripe', top: '#7a1f2a', c2: '#ffffff', sleeves: true } },
+  { id: 't11', n: 'تيشيرت أحمر', p: 70, glb: 'hero_redtee.glb', o: { shirt: 'solid', top: '#c0392b', sleeves: false } },
   { id: 't0', n: 'هودي أصفر (الأصلي)', p: 0, o: { shirt: 'hoodie', top: '#e0a030', sleeves: true } },
 ];
 export const PANTS = [

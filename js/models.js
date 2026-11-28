@@ -49,15 +49,16 @@ export async function initModels(ver) {
   if (man.hero) Models.hero = await load(man.hero, 'hero');
   for (const e of man.police || []) { const t = await load(e, 'police'); if (t) Models.police.push(t); }
   for (const e of man.npcs || []) { const t = await load(e, 'npc'); if (t) Models.npcs.push(t); }
-  for (const e of man.variants || []) { const t = await load(e, 'hero'); if (t) Models.byFile[t.file] = t; }
   Models.ready = !!(Models.hero || Models.police.length || Models.npcs.length);
+  // hero variants (shop clothes) load in the background after the cast
+  Models.variantsP = (async () => { for (const e of man.variants || []) await load(e, 'hero'); })();
   return Models;
 }
 
 export function pickTemplate(opts) {
   if (!Models.ready) return null;
   const role = (opts && opts.role) || 'npc';
-  if (opts && opts.glb && Models.byFile[opts.glb]) return Models.byFile[opts.glb];
+  if (opts && opts.glb && Models.byFile[opts.glb] && !(role === 'hero' && S.hdHero === false)) return Models.byFile[opts.glb];
   if (role === 'story') return null;
   if (role === 'hero') return (S.hdHero === false) ? null : Models.hero;
   if (role === 'police') return Models.police.length ? pick(Models.police) : null;
@@ -73,12 +74,12 @@ export function wrapImported(tpl) {
   const model = clone(tpl.scene); body.add(model);
   const mixer = new THREE.AnimationMixer(model), acts = {};
   const find = re => tpl.clips.find(c => re.test(c.name));
-  const idle = find(/idle|stand|breath/i), walk = find(/walk/i) || tpl.clips[0], run = find(/run|jog/i);
-  for (const [k, c] of [['idle', idle], ['walk', walk], ['run', run]]) if (c) { const a = mixer.clipAction(c); a.play(); a.setEffectiveWeight(0); acts[k] = a; }
+  const idle = find(/^idle|stand|breath/i), walk = find(/walk/i) || tpl.clips[0], run = find(/run|jog/i);
+  for (const [k, c] of [['idle', idle], ['walk', walk], ['run', run], ['talk', find(/talk/i)]]) if (c) { const a = mixer.clipAction(c); a.play(); a.setEffectiveWeight(0); acts[k] = a; }
   if (acts.idle) acts.idle.setEffectiveWeight(1); else if (acts.walk) acts.walk.setEffectiveWeight(1);
   const D = () => new THREE.Object3D(), arm = () => ({ sh: D(), el: D() }), leg = () => ({ hp: D(), kn: D() });
   root.userData = {
-    imported: true, body, tor: D(), head: D(), aL: arm(), aR: arm(), lL: leg(), lR: leg(), long: false, mixer, acts, lastT: performance.now(), wI: 1, wW: 0, wR: 0,
+    imported: true, body, tor: D(), head: D(), aL: arm(), aR: arm(), lL: leg(), lR: leg(), long: false, mixer, acts, lastT: performance.now(), wI: 1, wW: 0, wR: 0, wT: 0, talking: false,
     mats: { top: new THREE.MeshLambertMaterial({ color: '#556' }), bottom: new THREE.MeshLambertMaterial({ color: '#334' }), skin: new THREE.MeshLambertMaterial({ color: '#c8956a' }) }, scale: body.scale
   };
   return root;
@@ -88,9 +89,9 @@ export function stepImported(u, amp, still) {
   const now = performance.now(), dt = Math.min(0.1, (now - u.lastT) / 1000); u.lastT = now;
   if (dt <= 0.0005) return;
   const a = u.acts, moving = !still && amp > 0.05, fast = moving && amp > 1.0;
-  const tI = moving ? 0 : 1, tW = moving && !fast ? 1 : 0, tR = fast ? 1 : 0, f = Math.min(1, dt * 8);
+  const tk = !!(u.talking && a.talk && !moving), tI = (moving || tk) ? 0 : 1, tW = moving && !fast ? 1 : 0, tR = fast ? 1 : 0, f = Math.min(1, dt * 8);
   if (!a.run) { /* no run clip: use walk faster */ }
-  u.wI += (tI - u.wI) * f; u.wW += ((a.run ? tW : (moving ? 1 : 0)) - u.wW) * f; u.wR += (tR - u.wR) * f;
+  u.wI += (tI - u.wI) * f; u.wW += ((a.run ? tW : (moving ? 1 : 0)) - u.wW) * f; u.wR += (tR - u.wR) * f; u.wT += ((tk ? 1 : 0) - u.wT) * f; if (a.talk) a.talk.setEffectiveWeight(u.wT);
   if (a.idle) { a.idle.setEffectiveWeight(u.wI); if (a.walk) { a.walk.setEffectiveWeight(u.wW); a.walk.timeScale = a.run ? 1 : Math.max(0.6, Math.min(1.6, 0.8 + amp * 0.6)); } }
   else if (a.walk) { a.walk.setEffectiveWeight(1); a.walk.timeScale = moving ? (a.run ? 1 : Math.max(0.6, Math.min(1.6, 0.8 + amp * 0.6))) : 0; }
   if (a.run) a.run.setEffectiveWeight(u.wR);

@@ -1,45 +1,43 @@
-# Realistic character models — integration note (from the character-art specialist)
+# Realistic character models — integration note v2 (from the character-art specialist)
 
-## What's here
-- hero.glb — 14,010 tris, 1.6 MB, 2048px textures
-- police.glb — 5,693 tris, 0.44 MB (white uniform + black beret)
-- npc_01.glb — 4,864 tris, 0.75 MB (taxi driver, striped shirt + jeans)
-- npc_02.glb — 5,654 tris, 0.60 MB (koshary vendor, overalls + apron)
-- npc_03.glb — 5,049 tris, 0.48 MB (woman, green hijab + skirt) gender "f"
-- npc_04.glb — 4,882 tris, 0.79 MB (teen, red shirt) 
-- npc_05.glb — 5,611 tris, 0.55 MB (older man, brown galabeya with sleeves)
-- npc_06.glb — 5,287 tris, 0.52 MB (businessman, dark suit)
-- models.json — already wired per js/models.js contract
+## What's here (v2 fixes)
+- hero.glb — 14,010 tris, 1.6MB (default hero: mustard top, jeans, backpack)
+- hero_hoodie.glb — 9,095 tris, 1.7MB (green hooded jacket + jeans, haircut short01)
+- hero_redtee.glb — 10,443 tris, 1.4MB (red raglan tee + jeans, haircut short04)
+- hero_bluetee.glb — 9,881 tris, 1.1MB (blue long-sleeve tee + jeans, haircut short03)
+- police.glb 5,693 tris, npc_01 4,864, npc_02 5,654, npc_03 5,049,
+  npc_04 4,882, npc_05 5,611, npc_06 5,287 (all 0.4–0.8MB)
+- models.json — same contract as before, default hero entry stays hero.glb
 
-Total payload ~5.6 MB. All NPCs within the 3k–6k tri budget, hero within 15k.
-
-## Contract
-Every GLB: one skinned humanoid (UE-style joint names), clips named exactly
-idle / walk / run (matches the loader's /idle|stand|breath/, /walk/, /run|jog/
-regexes), height normalized by the loader to 1.78 (models.json carries
-per-file heights for the woman 1.65, teen 1.68, older man 1.72).
+## v2 changes
+1. npc_03 hijab rebuilt: draped mesh covering hair, ears, neck and shoulders,
+   face opening only, dark green. No scalp show-through.
+2. Materials export OPAQUE everywhere EXCEPT hair/eyes/eyebrows
+   (Human.short0X, Human.low-poly, Human.eyebrow0XX stay BLEND for
+   alpha-clip). The loader-side opaque-forcing hack can be dropped.
+3. Hero variants for the shops: hero_hoodie / hero_redtee / hero_bluetee.
+   Same 53-joint rig, same idle/walk/run/talk clips, same 1.78m normalize,
+   same budgets. To swap at runtime: load the variant GLB exactly like
+   hero.glb and replace the hero instance — no other changes. Clothes shop
+   swaps tops (all three), barber swaps haircuts (each variant has a
+   different one; a recut of any variant with another short0X haircut is a
+   12-second rebuild — ask).
+4. New clip on EVERY GLB: "talk" (90-frame loop: head nods + one-hand
+   gestures) for dialogue/cutscene moments. The loader's idle/walk/run
+   regexes are unaffected; talk is opt-in via gltf.animations.
 
 ## Verified
-- All 8 GLBs + models.json fetched by the game (HTTP 200) and the hero renders
-  in-engine (headless Chrome screenshot taken at spawn).
-- Walk clips verified by re-importing the GLBs and rendering frames.
+- GLB-level: all 11 files parsed; clips idle/walk/run/talk present; alpha
+  modes as above; tri counts in budget.
+- In-engine: headless Chrome against the local repo, game fetched all GLBs
+  (HTTP 200) and rendered the hero at spawn (screenshot taken).
+- Hero variants rendered via GLB re-import (fixes.png in the report).
 
-## Known limitations (be honest with the user)
-- Clips are hand-keyed procedural cycles (idle sway, walk, run), not mocap.
-  Good at phone distance, not cinematic close-up quality.
-- Hero top is a mustard button shirt; no hoodie mesh exists in the CC0 set.
-- Bodies/faces come from MakeHuman Community (MPFB2, CC0): realistic
-  proportions and skin, but not bespoke-sculpted like the Gemini renders.
-- Hijab, beret, galabeya, apron, backpack are procedural extras (simple
-  geometry, solid colors); they read correctly at gameplay distance.
-- Each GLB carries several small textures (skin/clothes/hair) rather than
-  one atlas — a few extra draw calls, trivial for this cast size; total
-  bytes are small. Textures are WebP inside the GLB.
-- Hair/skin tints are applied via material base color, so they look darker
-  in-game than in raw texture previews.
-- Taxi driver shirt is striped (closest available); woman's skirt is
-  knee-length, not ankle-length.
-
-## If a model needs replacing
-Drop a new GLB over the file, keep the name + clip names, keep tris in
-budget. Nothing else to change.
+## Known limitations (unchanged from v1)
+- Hand-keyed procedural clips, not mocap. Hero tops are CC0 assets: the
+  hoodie variant is a hooded jacket (no pullover-hoodie mesh exists CC0).
+- Hijab/beret/galabeya/apron/backpack are procedural extras, solid colors.
+- Several small textures per GLB rather than one atlas (few extra draw
+  calls, trivial at this cast size). Textures are WebP.
+- Hair/skin tints via base color factor show darker in-game than raw
+  texture previews.

@@ -347,12 +347,12 @@ export class Story {
   }
   _idleActors(dt) {
     const P = this.ctx.P();
-    if (this.cineActive) { const pm = this.ctx.playerMesh(), u = pm.userData; animateWalk(u, 0, 0, dt, true); const c = this.cine; if (c && c.b && c.b.who === 'yassin') { const t = performance.now() / 1000; u.aR.sh.rotation.x = -0.75 + Math.sin(t * 5.5) * 0.28; u.aR.el.rotation.x = -0.9 + Math.sin(t * 5.5 + 1) * 0.2; u.head.rotation.x = Math.sin(t * 6) * 0.05; u.head.rotation.y = 0; } }
+    if (this.cineActive) { const pm = this.ctx.playerMesh(), u = pm.userData; animateWalk(u, 0, 0, dt, true); const c = this.cine; if (c && c.b && c.b.who === 'yassin') { const t = performance.now() / 1000; u.aR.sh.rotation.x = -0.75 + Math.sin(t * 5.5) * 0.28; u.aR.el.rotation.x = -0.9 + Math.sin(t * 5.5 + 1) * 0.2; u.head.rotation.x = Math.sin(t * 6) * 0.05; u.head.rotation.y = 0; } u.talking = !!(c && c.b && c.b.who === 'yassin'); }
     for (const id in this.actors) {
       const a = this.actors[id], d = Math.hypot(a.x - P.px, a.z - P.pz);
       a.tag.visible = !this.cineActive && d < 22; a.mesh.visible = d < 120 || this.cineActive;
       if (d > 70 && !this.cineActive) continue;
-      const u = a.mesh.userData; animateWalk(u, 0, 0, dt, true);
+      const u = a.mesh.userData; u.talking = a.talk > 0; animateWalk(u, 0, 0, dt, true);
       a.yaw += wrap(a.ty - a.yaw) * Math.min(1, dt * 7); a.mesh.rotation.y = a.yaw;
       if (a.talk > 0) { a.talk -= dt; const t = performance.now() / 1000; u.aR.sh.rotation.x = -0.75 + Math.sin(t * 5.5) * 0.28; u.aR.el.rotation.x = -0.9 + Math.sin(t * 5.5 + 1) * 0.2; u.aL.sh.rotation.x = -0.25 + Math.sin(t * 4.1) * 0.12; u.head.rotation.x = Math.sin(t * 6) * 0.05; u.head.rotation.y = 0; }
     }

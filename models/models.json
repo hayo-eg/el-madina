@@ -1,4 +1,5 @@
 { "height": 1.78, "hero": "hero.glb", "police": ["police.glb"],
+  "variants": ["hero_hoodie.glb","hero_redtee.glb","hero_bluetee.glb"],
   "npcs": [ {"file": "npc_01.glb", "gender": "m"},
             {"file": "npc_02.glb", "gender": "m"},
             {"file": "npc_03.glb", "gender": "f", "height": 1.65},
