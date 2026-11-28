@@ -76,16 +76,16 @@ export class Controls {
   }
 
   // look delta in pixels since last call
-  look() { const d = { x: this.lookDX, y: this.lookDY }; this.lookDX = 0; this.lookDY = 0; return d; }
+  look() { if (this.locked) { this.lookDX = this.lookDY = 0; return { x: 0, y: 0 }; } const d = { x: this.lookDX, y: this.lookDY }; this.lookDX = 0; this.lookDY = 0; return d; }
   lookIdle(now) { return now - this.lastLook; }
-  pressed(n) { const v = !!this.edge[n]; this.edge[n] = false; return v; }
+  pressed(n) { if (this.locked && n !== 'esc') { this.edge[n] = false; return false; } const v = !!this.edge[n]; this.edge[n] = false; return v; }
   actionPressed() { return this.pressed('action'); }
   resetPressed() { return this.pressed('reset'); }
-  fire() { return this.fireHeld || this.mouseFire || !!this.keys['KeyF']; }
+  fire() { if (this.locked) return false; return this.fireHeld || this.mouseFire || !!this.keys['KeyF']; }
 
   // foot input: x = right, z = forward (screen relative)
   foot() {
-    let x = 0, z = 0;
+    let x = 0, z = 0; if (this.locked) return { x, z };
     if (this.keys['KeyW'] || this.keys['ArrowUp']) z += 1;
     if (this.keys['KeyS'] || this.keys['ArrowDown']) z -= 1;
     if (this.keys['KeyA'] || this.keys['ArrowLeft']) x -= 1;
@@ -95,6 +95,7 @@ export class Controls {
   }
 
   car() {
+    if (this.locked) return { throttle: 0, steer: 0, brake: true, hand: false };
     let throttle = 0, steer = 0;
     if (this.keys['KeyW'] || this.keys['ArrowUp']) throttle += 1;
     if (this.keys['KeyS'] || this.keys['ArrowDown']) throttle -= 1;

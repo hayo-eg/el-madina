@@ -10,6 +10,7 @@ import { NPCs } from './npc.js';
 import { initModels, Models } from './models.js';
 import { lookOpts } from './customize.js';
 import { Shops } from './shops.js';
+import { Story, CHAPTER_TITLES } from './story.js';
 import { Radar } from './radar.js';
 import { Police } from './police.js';
 import { Jobs, JOB_DEFS } from './jobs.js';
@@ -256,7 +257,7 @@ const owned = saved.owned || [true, true, false, false];
 const missions = new Missions(scene, hud, audio);
 missions.cash = saved.cash || 0; hud.cash(missions.cash);
 let saveJobsRef = null;
-function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ cash: missions.cash, owned, done: saveJobsRef ? saveJobsRef.done : {} })); } catch (e) {} }
+function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ cash: missions.cash, owned, done: saveJobsRef ? saveJobsRef.done : {}, story: story.save() })); } catch (e) {} }
 setInterval(saveGame, 8000);
 window.addEventListener('pagehide', saveGame);
 const police = new Police(scene, colliders);
@@ -271,6 +272,27 @@ const jobs = new Jobs(scene, hud, {
   spawnCar(x, z, color, type) { const mesh = makeCar(color, type); mesh.position.set(x, 0, z); scene.add(mesh); const o = { mesh, x, z, heading: 0, speed: 0, parked: true, job: true }; parked.push(o); return o; },
 });
 saveJobsRef = jobs;
+const story = new Story(scene, camera, {
+  saved, audio, hud, colliders,
+  P() { return { px: car ? car.x : player.x, pz: car ? car.z : player.z }; },
+  getCar() { return car; },
+  nearestCar() { return nearestCar(); },
+  stars() { return stars; },
+  wantStars(n) { wantStars(Math.max(stars, n)); },
+  clearStars() { police.clear(); stars = 0; evade = 0; bust = 0; refreshStars(); },
+  addCash(n) { missions.cash += n; hud.cash(missions.cash); },
+  banner(t, c, ms) { banner(t, c, ms); },
+  save() { saveGame(); },
+  restore() { missions._banner(); missions.marker.visible = true; },
+  spawnCar(x, z, color, type) { const mesh = makeCar(color, type); mesh.position.set(x, 0, z); scene.add(mesh); const o = { mesh, x, z, heading: 0, speed: 0, parked: true, job: true }; parked.push(o); return o; },
+  forceExit() { if (car) exitCar(); },
+  lock(on) { controls.locked = on; if (on) { controls.fireHeld = false; controls.mouseFire = false; } },
+  teleport(x, z) { player.x = x; player.z = z; player.syncMesh(); focus.x = x; focus.z = z; },
+  playerFace(a) { if (a) { player.heading = Math.atan2(a.x - player.x, a.z - player.z); player.syncMesh(); } },
+  playerMesh() { return player.mesh; },
+  camReset() { camYaw = player.heading; camPitch = 0.45; focus.x = player.x; focus.z = player.z; camera.fov = camera.userData.baseFov || 62; camera.updateProjectionMatrix(); },
+});
+window.__story = story;
 const radar = new Radar($('minimap'), $('pmCanvas'), city.emptyBlocks);
 
 // ---------- State ----------
@@ -449,6 +471,7 @@ function respawn() {
   player.x = START.x; player.z = START.z; player.syncMesh();
   focus.x = player.x; focus.z = player.z;
   camYaw = 0; setWeapon(cur);
+  story.onDeath();
 }
 
 // ---------- Cars ----------
@@ -663,6 +686,7 @@ function updateCamera(dt) {
   camera.position.set(focus.x - Math.sin(camYaw) * cp * dist, wantY, focus.z - Math.cos(camYaw) * cp * dist);
   const ahead = car ? 4 : 2.5;
   camera.lookAt(focus.x + Math.sin(camYaw) * ahead, fy - (car ? 0.2 : 0.55), focus.z + Math.cos(camYaw) * ahead);
+  if (story.cineActive) story._shot(story.cine.b || story.cine.def.beats[0], story.cine.b ? story.cine.t / story.cine.dur : 0);
 }
 
 // ---------- floating HP bars ----------
@@ -696,12 +720,12 @@ let mapT = 0;
 function radarInfo() {
   return {
     x: car ? car.x : player.x, z: car ? car.z : player.z, heading: camYaw,
-    marker: jobs.active ? jobs.markerPos() : missions.markerPos(), police: police.blips(),
+    marker: story.markerPos() || (jobs.active ? jobs.markerPos() : missions.markerPos()), police: police.blips(),
   };
 }
 function openOverlay(id, on) {
   $(id).style.display = on ? 'flex' : 'none';
-  paused = $('settings').style.display === 'flex' || $('pauseMap').style.display === 'flex' || $('menu').style.display === 'flex' || $('shopOv').style.display === 'flex';
+  paused = $('settings').style.display === 'flex' || $('pauseMap').style.display === 'flex' || $('menu').style.display === 'flex' || $('shopOv').style.display === 'flex' || story.cineActive;
   if (on && id === 'pauseMap') { const i = radarInfo(); i.heading = car ? car.heading : player.heading; radar.drawPause(i, gameT); }
 }
 $('btnGear').addEventListener('click', () => openOverlay('settings', true));
@@ -730,7 +754,7 @@ audio.vol = S.volume;
 $('spUnit').textContent = S.kmh ? 'كم/س' : 'ميل/س';
 
 // ---------- menu: missions / shop / progress ----------
-let menuTab = 'jobs';
+let menuTab = story.done ? 'jobs' : 'story';
 const SHOP = [
   { id: 'w2', name: 'رشاش خفيف', desc: 'نار سريعة', price: 900, type: 'weapon', idx: 2 },
   { id: 'w3', name: 'خرطوش', desc: 'قوة كبيرة من قريب', price: 1400, type: 'weapon', idx: 3 },
@@ -746,12 +770,21 @@ function renderMenu() {
     if (label) { const b = document.createElement('button'); b.textContent = label; b.disabled = !!disabled; b.addEventListener('click', fn); d.appendChild(b); }
     body.appendChild(d);
   };
-  if (menuTab === 'jobs') {
+  if (menuTab === 'story') {
+    card('الهدف الحالي', story.objective(), null);
+    if (!story.done) card(story.paused ? 'القصة واقفة (لعب حر)' : 'القصة شغالة', story.paused ? 'ارجع للقصة لما تحب' : 'ممكن توقفها وتلعب حر أو مهام جانبية', story.paused ? 'كمّل القصة' : 'وقف القصة', () => { story.pause(!story.paused); renderMenu(); });
+    CHAPTER_TITLES.forEach((t, i) => {
+      const state = story.done || i < story.ch ? 'خلصت' : i === story.ch ? 'شغالة' : 'لسه';
+      card('الفصل ' + (i + 1) + ': ' + t, state, (state === 'خلصت' || state === 'شغالة') ? 'ابدأ الفصل من الأول' : null, () => { story.restartChapter(i); openOverlay('menu', false); });
+    });
+  } else if (menuTab === 'jobs') {
     if (jobs.active) card('مهمة شغالة: ' + jobs.active.def.title, 'اكمل المهمة أو الغيها', 'إلغاء', () => { jobs.cancel('اتلغت المهمة'); renderMenu(); });
+    const blocked = story.active && !story.paused;
+    if (blocked) card('القصة شغالة', 'وقّفها من تبويب القصة علشان تعمل مهام جانبية', null);
     for (const d of JOB_DEFS) card(d.title, d.desc + ' · مكافأة ' + d.reward + ' · اتعملت ' + (jobs.done[d.id] || 0) + ' مرة', 'ابدأ', () => {
       const P = { x: car ? car.x : player.x, z: car ? car.z : player.z };
       if (jobs.start(d.id, P)) { openOverlay('menu', false); }
-    }, !!jobs.active);
+    }, !!jobs.active || blocked);
     card('توصيل ركاب (حر)', 'المهمة الأساسية: خد الركاب من العلامة الصفرا. شغالة لما مفيش مهمة تانية.', null);
   } else if (menuTab === 'shop') {
     for (const it of SHOP) {
@@ -820,7 +853,7 @@ function loop(now) {
     if (npcs.pendingHits > 0) { hurt(npcs.pendingHits); npcs.pendingHits = 0; }
     for (const n of npcs.list) if (n.crime) { n.crime = false; wantStars(Math.max(stars, 1)); }
     for (const t of traffic) t.update(dt, traffic, P.x, P.z, car);
-    if (jobs.active) { missions.marker.visible = false; jobs.update(dt, P); } else missions.update(dt, P.x, P.z, !!car);
+    if (story.active && !story.paused) { missions.marker.visible = false; } else if (jobs.active) { missions.marker.visible = false; jobs.update(dt, P); } else missions.update(dt, P.x, P.z, !!car);
 
     // police
     const out = police.update(dt, P, stars, S.police);
@@ -857,13 +890,14 @@ function loop(now) {
     else if (frames % 2 === 1 && frames < 3) radar.draw(radarInfo(), gameT);
   }
 
+  if (started) story.update(dt, (paused && !story.cineActive) || dead > 0);
   city.update(performance.now() / 1000);
   updateCamera(dt);
   if (!paused) { updateSmoke(dt); updateSparks(dt); updateBars(); }
   sky.update(dt, camera.position);
   { const fx = car ? car.x : player.x, fz = car ? car.z : player.z;
     sun.target.position.set(fx, 0, fz); sun.position.set(fx + SUN_OFF.x, SUN_OFF.y, fz + SUN_OFF.z); }
-  { const base = camera.userData.baseFov || 62; const tf = car ? base + Math.min(14, Math.abs(car.speed) * 0.35) : base; camera.fov += (tf - camera.fov) * 0.08; camera.updateProjectionMatrix(); }
+  if (story.cineActive) { camera.fov = story.fov; camera.updateProjectionMatrix(); } else { const base = camera.userData.baseFov || 62; const tf = car ? base + Math.min(14, Math.abs(car.speed) * 0.35) : base; camera.fov += (tf - camera.fov) * 0.08; camera.updateProjectionMatrix(); }
   perfCheck(dt);
   renderer.render(scene, camera);
   shops.update(dt, gameT); shops.renderPreview(renderer, dt);
@@ -911,6 +945,7 @@ $('startBtn').addEventListener('click', () => {
   $('start').style.display = 'none';
   started = true;
   setTimeout(() => window.__loadModels(), 1500);
+  setTimeout(() => story.begin(), 700);
   missions._banner();
   if (S.radio) { audio.radio(true); banner('راديو ماينا FM', '#ff7ac8', 2200); }
 });
@@ -934,6 +969,6 @@ window.__game = {
   toNpc(d = 8, i = 0) { const n = npcs.list[i]; player.x = n.x - 2; player.z = n.z - d; return [n.x, n.z]; },
   lineup() { npcs.list.slice(0, 8).forEach((n, i) => { n.x = player.x - 7 + i * 2; n.z = player.z + 6; n.heading = Math.PI; n.idle = 99; n.mesh.position.set(n.x, 0.34, n.z); n.mesh.rotation.y = Math.PI; }); },
   setStars(n) { stars = 0; wantStars(n); },
-  setPlayer(x, z) { if (car) { car.x = x; car.z = z; } else { player.x = x; player.z = z; player.syncMesh(); } }, jobs, startJob(id) { return jobs.start(id, { x: player.x, z: player.z }); }, saveGame, owned, setWeapon, police, openOverlay, shoot, punch, npcs, resolveCars, get car() { return car; }, setCam(y, p) { camYaw = y; camPitch = p; },
+  enterStoryCar(id) { const o = story.cars[id]; if (o && !car) enterCar(o); }, clearStars() { police.clear(); stars = 0; evade = 0; refreshStars(); }, setPlayer(x, z) { if (car) { car.x = x; car.z = z; } else { player.x = x; player.z = z; player.syncMesh(); } }, jobs, startJob(id) { return jobs.start(id, { x: player.x, z: player.z }); }, saveGame, owned, setWeapon, police, openOverlay, shoot, punch, npcs, resolveCars, get car() { return car; }, setCam(y, p) { camYaw = y; camPitch = p; },
   traffic, parked, scene, camera,
 };

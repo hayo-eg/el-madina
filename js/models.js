@@ -53,6 +53,7 @@ export async function initModels(ver) {
 export function pickTemplate(opts) {
   if (!Models.ready) return null;
   const role = (opts && opts.role) || 'npc';
+  if (role === 'story') return null;
   if (role === 'hero') return (opts.glb && Models.byFile[opts.glb]) || Models.hero;
   if (role === 'police') return Models.police.length ? pick(Models.police) : null;
   if (!Models.npcs.length) return null;

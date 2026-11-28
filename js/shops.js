@@ -152,7 +152,7 @@ export class Shops {
     if (this.spin) this.pvp.rotation.y += dt * 0.5;
     const c = this.pvCam; c.aspect = r.width / r.height; c.position.set(0, 1.0, 4.4); c.lookAt(0, 0.95, 0); c.updateProjectionMatrix();
     const key = this.tab; // focus the head for hair/glasses/hats
-    if (key === 'hair' || key === 'glasses' || key === 'hat') { c.position.set(0, 1.62, 2.1); c.lookAt(0, 1.62, 0); }
+    if (key === 'hair' || key === 'glasses' || key === 'hat') { c.position.set(0, 1.74, 1.45); c.lookAt(0, 1.72, 0); }
     else if (key === 'shoe') { c.position.set(0, 0.45, 3.0); c.lookAt(0, 0.4, 0); }
     const U = this.pvp.userData; if (U.mixer) { U.mixer.update(dt); }
     const vp = new THREE.Vector4(); renderer.getViewport(vp); const was = renderer.autoClear;
