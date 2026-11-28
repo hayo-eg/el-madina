@@ -10,8 +10,8 @@ function randPoint() {
 function farPoint(from, min) { let p, g = 0; do { p = randPoint(); } while (Math.hypot(p.x - from.x, p.z - from.z) < min && g++ < 40); return p; }
 
 export const JOB_DEFS = [
-  { id: 'cargo', title: 'توصيل شحنة سرية 📦', desc: 'استلم الصندوق وسلّمه قبل ما الوقت يخلص. البوليس ممكن يشوفك.', reward: 700 },
-  { id: 'steal', title: 'سرقة عربية مطلوبة 🚗', desc: 'اسرق العربية الحمرا الفخمة وودّيها للجراج. بوليس هيطاردك.', reward: 1000 },
+  { id: 'cargo', title: 'توصيل شحنة سرية', desc: 'استلم الصندوق وسلّمه قبل ما الوقت يخلص. البوليس ممكن يشوفك.', reward: 700 },
+  { id: 'steal', title: 'سرقة عربية مطلوبة', desc: 'اسرق العربية الحمرا الفخمة وودّيها للجراج. بوليس هيطاردك.', reward: 1000 },
 ];
 
 export class Jobs {
@@ -38,12 +38,12 @@ export class Jobs {
     const a = this.active = { def, stage: 0, timer: 0, max: 1, id };
     if (id === 'cargo') {
       a.from = farPoint(P, 60); a.to = farPoint(a.from, 140);
-      this._mk(a.from, '#ff9a3c'); this.hud.mission('📦 روح استلم الشحنة من العلامة', def.title);
+      this._mk(a.from, '#ff9a3c'); this.hud.mission('روح استلم الشحنة من العلامة', def.title);
     } else if (id === 'steal') {
       const p = farPoint(P, 80);
       a.car = this.ctx.spawnCar(p.x, p.z, '#d11f3c', 'sports');
       a.garage = farPoint(p, 150);
-      this._mk(p, '#ff2b55'); this.hud.mission('🚗 اركب العربية الحمرا الفخمة', def.title);
+      this._mk(p, '#ff2b55'); this.hud.mission('اركب العربية الحمرا الفخمة', def.title);
     }
     this.ctx.banner('مهمة: ' + def.title, '#ffd166', 2200);
     return true;
@@ -63,7 +63,7 @@ export class Jobs {
     this.done[d.id] = (this.done[d.id] || 0) + 1;
     this.marker.visible = false; this.hud.timer(null);
     this.ctx.addCash(d.reward);
-    this.ctx.banner('نجحت! +' + d.reward + ' 💰', '#7ee787', 2600);
+    this.ctx.banner('نجحت! +' + d.reward + ' ج', '#7ee787', 2600);
     this.active = null; this.ctx.audio.success(); this.ctx.restore(); this.ctx.save();
   }
 
@@ -80,7 +80,7 @@ export class Jobs {
     if (a.id === 'cargo') {
       if (a.stage === 0 && d < 4.5) {
         a.stage = 1; a.max = a.timer = Math.hypot(a.to.x - a.from.x, a.to.z - a.from.z) / 11 + 22;
-        this._mk(a.to, '#7ee787'); this.hud.mission('📦 سلّم الشحنة قبل الوقت ما يخلص!', 'الشحنة معاك');
+        this._mk(a.to, '#7ee787'); this.hud.mission('سلّم الشحنة قبل الوقت ما يخلص!', 'الشحنة معاك');
         this.ctx.wantStars(1); this.ctx.audio.pickup();
       } else if (a.stage === 1 && d < 4.5) this.complete();
     } else if (a.id === 'steal') {
@@ -88,7 +88,7 @@ export class Jobs {
         const c = this.ctx.getCar();
         if (c && c.mesh === a.car.mesh) {
           a.stage = 1; a.max = a.timer = Math.hypot(a.garage.x - P.x, a.garage.z - P.z) / 13 + 30;
-          this._mk(a.garage, '#7ee787'); this.hud.mission('🚨 وصّل العربية للجراج بسرعة!', 'البوليس وراك');
+          this._mk(a.garage, '#7ee787'); this.hud.mission('وصّل العربية للجراج بسرعة!', 'البوليس وراك');
           this.ctx.wantStars(2); this.ctx.audio.pickup();
         } else { this.marker.position.set(a.car.x, 0, a.car.z); this.pt = { x: a.car.x, z: a.car.z }; }
       } else if (a.stage === 1) {

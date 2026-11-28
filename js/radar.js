@@ -103,7 +103,7 @@ export class Radar {
     g.drawImage(this.pauseBase, off, off, size, size);
     g.strokeStyle = '#6f879c'; g.lineWidth = 4; g.strokeRect(off, off, size, size);
     g.fillStyle = '#1fb7d6'; g.fillRect(off, off + size + 6, size, W - off - size - 6);
-    g.fillStyle = '#fff'; g.font = 'bold 22px Tahoma, Arial'; g.textAlign = 'center'; g.fillText('البحر ↓ كورنيش وملاهي ومرسى', W / 2, off + size + 30);
+    g.fillStyle = '#fff'; g.font = 'bold 22px Tahoma, Arial'; g.textAlign = 'center'; g.fillText('البحر: كورنيش وملاهي ومرسى', W / 2, off + size + 30);
     const pt = (x, z) => [off + (x + S / 2) * k, off + (z + S / 2) * k];
     if (info.marker) { const [x, y] = pt(info.marker.x, info.marker.z); blip(g, x, y, 'marker', t); }
     for (const p of info.police) { const [x, y] = pt(p.x, p.z); blip(g, x, y, 'police', t); }

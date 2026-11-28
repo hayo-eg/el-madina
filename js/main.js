@@ -25,7 +25,7 @@ const hud = {
     b.style.display = 'block';
     $('timerFill').style.width = (f * 100).toFixed(1) + '%';
   },
-  cash(v) { $('cash').textContent = '💰 ' + v; },
+  cash(v) { $('cash').textContent = v + ' ج'; },
 };
 
 // ---------- Audio (tiny WebAudio synth, no assets) ----------
@@ -318,7 +318,7 @@ function updateSparks(dt) {
 }
 function setWeapon(i) {
   i = clamp(i, 0, WEAPONS.length - 1);
-  if (!owned[i] && i > 0) { banner('اشتري السلاح ده من المتجر 📋', '#ffd166', 1500); i = 0; }
+  if (!owned[i] && i > 0) { banner('اشتري السلاح ده من المتجر', '#ffd166', 1500); i = 0; }
   cur = i;
   gunGroup.children.forEach(g => g.visible = false);
   if (cur && gunGroup.userData[cur]) gunGroup.userData[cur].visible = !car;
@@ -329,14 +329,14 @@ function refreshWeaponHud() {
   const w = WEAPONS[cur], el = $('weaponHud');
   el.style.display = cur ? 'block' : 'none';
   $('wName').textContent = w.name;
-  $('wAmmo').textContent = cur ? (wState[cur].reload > 0 ? '...' : wState[cur].ammo + ' / ∞') : '';
+  $('wAmmo').textContent = cur ? (wState[cur].reload > 0 ? '...' : wState[cur].ammo + ' / مفتوح') : '';
   $('cross').style.display = (cur && !car) ? 'block' : 'none';
   $('btnFire').style.display = !car ? 'flex' : 'none';
   setIcon($('btnFire'), cur ? 'bullet' : 'fist');
 }
 function wantStars(n) {
   n = clamp(n, 0, 5);
-  if (n > stars) { stars = n; evade = 0; if (n === 1) banner('مطلوب ★', '#ffd23f'); }
+  if (n > stars) { stars = n; evade = 0; if (n === 1) banner('مطلوب', '#ffd23f'); }
   refreshStars();
 }
 function refreshStars() {
@@ -735,7 +735,7 @@ const SHOP = [
   { id: 'hp', name: 'علاج كامل', desc: 'صحتك ترجع 100%', price: 150, type: 'heal' },
 ];
 function renderMenu() {
-  $('menuCash').textContent = ' 💰 ' + missions.cash;
+  $('menuCash').textContent = missions.cash + ' ج';
   document.querySelectorAll('#menu .tab').forEach(b => b.classList.toggle('on', b.dataset.t === menuTab));
   const body = $('menuBody'); body.innerHTML = '';
   const card = (title, sub, label, fn, disabled) => {
@@ -754,7 +754,7 @@ function renderMenu() {
   } else if (menuTab === 'shop') {
     for (const it of SHOP) {
       const have = it.type === 'weapon' && owned[it.idx];
-      card(it.name, it.desc + (have ? ' · عندك' : ' · ' + it.price + ' 💰'), have ? 'ملكك' : 'اشتري', () => {
+      card(it.name, it.desc + (have ? ' · عندك' : ' · ' + it.price + ' ج'), have ? 'ملكك' : 'اشتري', () => {
         if (missions.cash < it.price) { banner('الفلوس مش كفاية', '#ff6b6b', 1200); return; }
         missions.cash -= it.price; hud.cash(missions.cash);
         if (it.type === 'weapon') { owned[it.idx] = true; banner('اشتريت ' + it.name, '#7ee787', 1200); } else { hp = 100; banner('اتعالجت', '#7ee787', 1200); }
@@ -763,7 +763,7 @@ function renderMenu() {
     }
   } else {
     const n = Object.values(jobs.done).reduce((a, b) => a + b, 0);
-    card('الفلوس', missions.cash + ' 💰', null); card('مهام اتعملت', String(n), null);
+    card('الفلوس', missions.cash + ' ج', null); card('مهام اتعملت', String(n), null);
     card('أحسن رصيد ركاب', String(missions.best || 0), null);
     card('الأسلحة', WEAPONS.map((w, i) => i && owned[i] ? w.name : '').filter(Boolean).join(' · ') || 'مفيش', null);
   }
@@ -909,13 +909,13 @@ $('startBtn').addEventListener('click', () => {
   $('start').style.display = 'none';
   started = true;
   missions._banner();
-  if (S.radio) { audio.radio(true); banner('♪ راديو ماينا FM ♪', '#ff7ac8', 2200); }
+  if (S.radio) { audio.radio(true); banner('راديو ماينا FM', '#ff7ac8', 2200); }
 });
 hud.mission('جاهز؟ اضغط ابدأ اللعب', '');
 $('startBtn').disabled = true;
 let warm = 0; const warmUp = () => { if (++warm >= 4) { $('startBtn').disabled = false; window.__loadDone && window.__loadDone(); } else requestAnimationFrame(warmUp); };
 renderer.compile(scene, camera); requestAnimationFrame(warmUp);
-if (saved.cash !== undefined) { $('saveInfo').textContent = 'تقدمك محفوظ · 💰 ' + (saved.cash || 0); $('startBtn').textContent = 'كمّل اللعب'; $('newBtn').style.display = 'inline-block'; }
+if (saved.cash !== undefined) { $('saveInfo').textContent = 'تقدمك محفوظ · ' + (saved.cash || 0) + ' ج'; $('startBtn').textContent = 'كمّل اللعب'; $('newBtn').style.display = 'inline-block'; }
 $('newBtn').addEventListener('click', () => { if (confirm('تمسح التقدم وتبدأ من الأول؟')) { localStorage.removeItem(SAVE_KEY); location.reload(); } });
 
 // debug/test hooks

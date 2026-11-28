@@ -102,7 +102,7 @@ export class Missions {
         if (this.cash > this.best) { this.best = this.cash; localStorage.setItem('madina_best', String(this.best)); }
         this.hud.cash(this.cash);
         this.audio.success();
-        this.hud.mission('تمام! +' + reward + ' 💰', '');
+        this.hud.mission('تمام! +' + reward + ' ج', '');
         this.state = 'COOLDOWN';
         this.cool = 2.2;
         this.dest = null;

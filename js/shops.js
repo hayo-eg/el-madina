@@ -14,7 +14,6 @@ function paint(kind) {
   for (let y = 0; y < 240; y += 14) for (let x = (y / 14 % 2) * 20; x < 512; x += 40) { g.fillStyle = 'rgba(0,0,0,.10)'; g.fillRect(x, y, 38, 12); }
   g.fillStyle = th[0]; g.fillRect(10, 8, 492, 66); g.strokeStyle = th[1]; g.lineWidth = 3; g.strokeRect(10, 8, 492, 66);
   g.fillStyle = th[1]; g.font = 'bold 46px Tahoma, Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.direction = 'rtl'; g.fillText(th[2], 256, 43);
-  g.font = '34px Arial'; g.fillText(kind === 'barber' ? '✂' : kind === 'clothes' ? '👕' : '🔫', 458, 43); g.fillText(kind === 'barber' ? '💈' : kind === 'clothes' ? '👟' : '🛡', 54, 43);
   // awning
   for (let i = 0; i < 16; i++) { g.fillStyle = kind === 'barber' ? (i % 2 ? '#f4f1ea' : '#b8262a') : kind === 'clothes' ? (i % 2 ? '#2a3140' : '#11151c') : '#3b3a35'; g.beginPath(); g.moveTo(14 + i * 30.5, 82); g.lineTo(14 + (i + 1) * 30.5, 82); g.lineTo(18 + (i + 1) * 30.5, 108); g.lineTo(10 + i * 30.5, 108); g.fill(); }
   // windows and door
@@ -31,7 +30,10 @@ function paint(kind) {
 function iconTex(ch) {
   const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
   g.fillStyle = 'rgba(255,209,102,.95)'; g.beginPath(); g.arc(64, 64, 58, 0, 7); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 6; g.stroke();
-  g.font = '64px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, 64, 70);
+  g.fillStyle = '#1b2233'; g.strokeStyle = '#1b2233'; g.lineWidth = 9; g.lineCap = 'round';
+  if (ch === 'barber') { g.beginPath(); g.moveTo(40, 36); g.lineTo(88, 92); g.moveTo(88, 36); g.lineTo(40, 92); g.stroke(); g.lineWidth = 6; g.beginPath(); g.arc(40, 98, 11, 0, 7); g.arc(88, 98, 11, 0, 7); g.stroke(); }
+  else if (ch === 'clothes') { g.beginPath(); g.moveTo(48, 30); g.lineTo(26, 48); g.lineTo(38, 64); g.lineTo(46, 58); g.lineTo(46, 98); g.lineTo(82, 98); g.lineTo(82, 58); g.lineTo(90, 64); g.lineTo(102, 48); g.lineTo(80, 30); g.quadraticCurveTo(64, 46, 48, 30); g.fill(); }
+  else { g.beginPath(); g.moveTo(24, 46); g.lineTo(98, 46); g.lineTo(98, 62); g.lineTo(60, 62); g.lineTo(56, 74); g.lineTo(66, 98); g.lineTo(46, 98); g.lineTo(38, 62); g.lineTo(24, 62); g.closePath(); g.fill(); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
@@ -40,9 +42,9 @@ export class Shops {
     this.h = hooks; this.open_ = false; this.list = []; this.marks = [];
     const cx = blockCoord(4), cz = blockCoord(3);
     const defs = [
-      { id: 'barber', ch: '✂', x: cx - 14.5, tab: ['hair'] },
-      { id: 'clothes', ch: '👕', x: cx, tab: ['top', 'pants', 'shoe', 'glasses', 'hat'] },
-      { id: 'weapons', ch: '🔫', x: cx + 14.5, tab: ['soon'] },
+      { id: 'barber', x: cx - 14.5, tab: ['hair'] },
+      { id: 'clothes', x: cx, tab: ['top', 'pants', 'shoe', 'glasses', 'hat'] },
+      { id: 'weapons', x: cx + 14.5, tab: ['soon'] },
     ];
     const wall = new THREE.MeshLambertMaterial({ color: '#8a7a68' });
     for (const d of defs) {
@@ -54,7 +56,7 @@ export class Shops {
       const roof = new THREE.Mesh(new THREE.BoxGeometry(W + 0.6, 0.5, D + 0.6), new THREE.MeshLambertMaterial({ color: '#8f8c85' })); roof.position.set(d.x, H + 0.6, z); scene.add(roof);
       colliders.push({ minX: d.x - W / 2, maxX: d.x + W / 2, minZ: z - D / 2, maxZ: z + D / 2, h: H + 1 });
       if (d.id === 'barber') { const pc = document.createElement('canvas'); pc.width = 32; pc.height = 128; const g = pc.getContext('2d'); g.fillStyle = '#f4f1ea'; g.fillRect(0, 0, 32, 128); for (let k = -2; k < 8; k++) { g.fillStyle = k % 2 ? '#2e5fb5' : '#c0392b'; g.beginPath(); g.moveTo(0, k * 20 + 20); g.lineTo(32, k * 20); g.lineTo(32, k * 20 + 10); g.lineTo(0, k * 20 + 30); g.fill(); } const pt = new THREE.CanvasTexture(pc); const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.5, 12), new THREE.MeshLambertMaterial({ map: pt, emissive: '#444' })); pole.position.set(d.x + W / 2 - 0.5, 3.2, z + D / 2 + 0.3); scene.add(pole); }
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: iconTex(d.ch), depthTest: false, transparent: true })); sp.scale.set(1.6, 1.6, 1); sp.position.set(d.x, 3.2, z + D / 2 + 3.2); sp.renderOrder = 990; scene.add(sp);
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: iconTex(d.id), depthTest: false, transparent: true })); sp.scale.set(1.6, 1.6, 1); sp.position.set(d.x, 3.2, z + D / 2 + 3.2); sp.renderOrder = 990; scene.add(sp);
       const ring = new THREE.Mesh(new THREE.RingGeometry(1.2, 1.7, 28), new THREE.MeshBasicMaterial({ color: '#ffd166', transparent: true, opacity: 0.85, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.set(d.x, 0.45, z + D / 2 + 3.2); scene.add(ring);
       this.marks.push(sp, ring);
       d.dx = d.x; d.dz = z + D / 2 + 3.2; this.list.push(d);
@@ -75,7 +77,7 @@ export class Shops {
     st.textContent = '#shopOv{background:rgba(5,9,16,.35)} #shopOv .sp{display:flex;gap:10px;width:min(780px,97vw);height:min(86vh,430px);background:transparent;border-radius:16px;color:#fff}.sr{background:#141c2b;border:1px solid rgba(255,255,255,.18);border-radius:16px;padding-left:10px!important}#pvBox{border-radius:16px;overflow:hidden}#pvBox{flex:0 0 36%;background:transparent;position:relative}#pvBox small{position:absolute;bottom:6px;left:0;right:0;text-align:center;color:#9fb4d8;font-size:11px}.sr{flex:1;display:flex;flex-direction:column;padding:10px 10px 10px 0;min-width:0}.sr h3{display:flex;justify-content:space-between;align-items:center;color:#ffd166;font-size:18px;margin-bottom:6px}.stabs{display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap}.stabs button{background:#0e1420;color:#cfe3ff;border:1px solid rgba(255,255,255,.2);border-radius:9px;padding:5px 9px;font-family:inherit;font-size:13px}.stabs button.on{background:#ffd166;color:#111;font-weight:800}.sgrid{overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:7px;flex:1;align-content:start}.si{background:#0e1420;border:2px solid rgba(255,255,255,.12);border-radius:11px;padding:6px;text-align:center;font-size:12px;cursor:pointer}.si.sel{border-color:#ffd166}.si.eq{border-color:#7ee787}.si i{display:block;width:34px;height:34px;border-radius:50%;margin:0 auto 4px;border:2px solid #fff3}.si b{display:block;font-size:12px}.si small{color:#9fb4d8}.sbuy{margin-top:6px;display:flex;gap:6px;align-items:center}.sbuy button{flex:1;background:#ffd166;color:#111;border:none;border-radius:10px;padding:9px;font-family:inherit;font-weight:800;font-size:15px}.sbuy button:disabled{background:#444;color:#999}.sbuy span{color:#ffd166;font-weight:800;min-width:70px;text-align:center}@media (orientation:portrait){#shopOv .sp{flex-direction:column;height:92vh}#pvBox{flex:0 0 34%}.sr{padding:0 10px 10px}}';
     document.head.appendChild(st);
     const ov = document.createElement('div'); ov.id = 'shopOv'; ov.className = 'ov';
-    ov.innerHTML = '<div class="sp"><div id="pvBox"><small>اسحب للتدوير</small></div><div class="sr"><h3><span id="shT"></span><span><small id="shCash"></small> <button class="xbtn" id="shX">✕</button></span></h3><div class="stabs" id="shTabs"></div><div class="sgrid" id="shGrid"></div><div class="sbuy"><span id="shPrice"></span><button id="shBuy">اشتري والبس</button></div></div></div>';
+    ov.innerHTML = '<div class="sp"><div id="pvBox"><small>اسحب للتدوير</small></div><div class="sr"><h3><span id="shT"></span><span><small id="shCash"></small> <button class="xbtn" id="shX">×</button></span></h3><div class="stabs" id="shTabs"></div><div class="sgrid" id="shGrid"></div><div class="sbuy"><span id="shPrice"></span><button id="shBuy">اشتري والبس</button></div></div></div>';
     document.body.appendChild(ov);
     this.ov = ov; ov.querySelector('#shX').addEventListener('click', () => this.close());
     ov.querySelector('#shBuy').addEventListener('click', () => this._buy());
@@ -98,7 +100,7 @@ export class Shops {
 
   open(def) {
     this.def = def; this.open_ = true; this.sel = Object.assign({}, this.look);
-    this.tab = def.tab[0]; this.ov.querySelector('#shT').textContent = { barber: '✂ الحلاق', clothes: '👕 محل الملابس', weapons: '🔫 محل السلاح' }[def.id];
+    this.tab = def.tab[0]; this.ov.querySelector('#shT').textContent = { barber: 'الحلاق', clothes: 'محل الملابس', weapons: 'محل السلاح' }[def.id];
     this.h.openOverlay('shopOv', true); this._render(); this._setPreview();
   }
   close() { if (!this.open_) return; this.open_ = false; this.h.openOverlay('shopOv', false); this.h.applyLook(lookOpts(this.look)); }
@@ -110,7 +112,7 @@ export class Shops {
   }
   _render() {
     const tabs = this.ov.querySelector('#shTabs'), grid = this.ov.querySelector('#shGrid'); tabs.innerHTML = ''; grid.innerHTML = '';
-    this.ov.querySelector('#shCash').textContent = '💰 ' + this.h.cash();
+    this.ov.querySelector('#shCash').textContent = this.h.cash() + ' ج';
     const names = { hair: 'قصات', top: 'فوق', pants: 'بناطيل', shoe: 'جزم', glasses: 'نضارات', hat: 'طواقي', soon: 'الأسلحة' };
     if (this.def.tab.length > 1) for (const t of this.def.tab) { const b = document.createElement('button'); b.textContent = names[t]; b.className = t === this.tab ? 'on' : ''; b.onclick = () => { this.tab = t; this.pick = null; this._render(); }; tabs.appendChild(b); }
     if (this.tab === 'soon') {
@@ -125,13 +127,13 @@ export class Shops {
       const own = this.owned.has(it.id) || it.p === 0, eq = this.look[key] === it.id, sel = this.sel[key] === it.id;
       const d = document.createElement('div'); d.className = 'si' + (sel ? ' sel' : '') + (eq ? ' eq' : '');
       d.innerHTML = '<i></i><b></b><small></small>'; d.querySelector('i').style.background = this._color(key, it);
-      d.querySelector('b').textContent = it.n; d.querySelector('small').textContent = eq ? 'لابسه' : own ? 'عندك' : it.p + ' 💰';
+      d.querySelector('b').textContent = it.n; d.querySelector('small').textContent = eq ? 'لابسه' : own ? 'عندك' : it.p + ' ج';
       d.onclick = () => { this.sel[key] = it.id; this.pick = it; this._setPreview(); this._render(); };
       grid.appendChild(d);
     }
     const it = list.find(x => x.id === this.sel[key]) || list[0], own = this.owned.has(it.id) || it.p === 0, eq = this.look[key] === it.id;
     const buy = this.ov.querySelector('#shBuy');
-    this.ov.querySelector('#shPrice').textContent = own ? '' : it.p + ' 💰';
+    this.ov.querySelector('#shPrice').textContent = own ? '' : it.p + ' ج';
     buy.textContent = eq ? 'لابسه' : own ? 'البس' : 'اشتري والبس'; buy.disabled = eq || (!own && this.h.cash() < it.p);
     this.curItem = it; this.curKey = key;
   }
