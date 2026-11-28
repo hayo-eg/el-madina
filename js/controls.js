@@ -37,9 +37,11 @@ export class Controls {
 
     const hold = (id, on, off) => {
       const b = document.getElementById(id);
-      b.addEventListener('pointerdown', e => { on(); b.setPointerCapture(e.pointerId); e.preventDefault(); });
+      b.addEventListener('pointerdown', e => { on(); try { b.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); });
       b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off);
     };
+    this.arr = { u: false, d: false, l: false, r: false };
+    for (const k of ['u', 'd', 'l', 'r']) hold('arr_' + k, () => { this.arr[k] = true; }, () => { this.arr[k] = false; });
     hold('btnBrake', () => { this.brakeHeld = true; }, () => { this.brakeHeld = false; });
     hold('btnFire', () => { this.fireHeld = true; }, () => { this.fireHeld = false; });
     document.getElementById('btnAction').addEventListener('pointerdown', e => { E('action'); e.preventDefault(); });
@@ -102,6 +104,7 @@ export class Controls {
     if (this.keys['KeyA'] || this.keys['ArrowLeft']) steer += 1;
     if (this.keys['KeyD'] || this.keys['ArrowRight']) steer -= 1;
     if (this.stick.active) { throttle = -this.stick.y; steer = -this.stick.x; }
+    const A = this.arr; if (A && (A.u || A.d || A.l || A.r)) { throttle = (A.u ? 1 : 0) - (A.d ? 1 : 0); steer = (A.l ? 1 : 0) - (A.r ? 1 : 0); }
     const brake = !!this.keys['Space'] || this.brakeHeld;
     const hand = !!(this.keys['ShiftLeft'] || this.keys['ShiftRight']);
     return { throttle, steer, brake, hand };

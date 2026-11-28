@@ -882,6 +882,7 @@ function loop(now) {
     $('btnAction').style.display = (near || car || shopNear) ? 'flex' : 'none';
     setIcon($('btnAction'), car ? 'exit' : 'enter');
     $('btnBrake').style.display = car ? 'flex' : 'none';
+    $('drvL').style.display = car ? 'flex' : 'none'; $('drvR').style.display = car ? 'flex' : 'none'; $('stick').style.display = car ? 'none' : ''; document.body.classList.toggle('driving', !!car); if (!car && controls.arr) controls.arr.u = controls.arr.d = controls.arr.l = controls.arr.r = false;
     $('btnWeapon').style.display = car ? 'none' : 'flex';
     $('speed').style.display = car ? 'block' : 'none';
     if (car) $('speed').firstChild.nodeValue = Math.round(Math.abs(car.speed) * (S.kmh ? 3.6 : 2.237)) + ' ';
@@ -968,6 +969,7 @@ window.__game = {
   toNpc(d = 8, i = 0) { const n = npcs.list[i]; player.x = n.x - 2; player.z = n.z - d; return [n.x, n.z]; },
   lineup() { npcs.list.slice(0, 8).forEach((n, i) => { n.x = player.x - 7 + i * 2; n.z = player.z + 6; n.heading = Math.PI; n.idle = 99; n.mesh.position.set(n.x, 0.34, n.z); n.mesh.rotation.y = Math.PI; }); },
   setStars(n) { stars = 0; wantStars(n); },
+  testCar() { const mesh = makeCar(0xd04040, 'sedan'); mesh.position.set(player.x + 2.5, 0, player.z); scene.add(mesh); const o = { mesh, x: player.x + 2.5, z: player.z, heading: 0, speed: 0, parked: true, job: true }; parked.push(o); if (!car) enterCar(o); },
   enterStoryCar(id) { const o = story.cars[id]; if (o && !car) enterCar(o); }, clearStars() { police.clear(); stars = 0; evade = 0; refreshStars(); }, setPlayer(x, z) { if (car) { car.x = x; car.z = z; } else { player.x = x; player.z = z; player.syncMesh(); } }, jobs, startJob(id) { return jobs.start(id, { x: player.x, z: player.z }); }, saveGame, owned, setWeapon, police, openOverlay, shoot, punch, npcs, resolveCars, get car() { return car; }, setCam(y, p) { camYaw = y; camPitch = p; },
   traffic, parked, scene, camera,
 };
