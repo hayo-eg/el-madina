@@ -71,6 +71,9 @@ export function lookOpts(L) {
   const o = Object.assign({}, BASE, { hair: HAIRCOL[L.hairCol || 0] });
   o.style = L.hair === 'fixed' ? 'short' : L.hair;
   Object.assign(o, find(TOPS, L.top).o, find(PANTS, L.pants).o, find(SHOES, L.shoe).o, find(GLASSES, L.glasses).o, find(HATS, L.hat).o);
+  // data-driven: any item may carry glb:'file.glb' (whole-model variant, later one wins: tops, then hair)
+  const g = [find(TOPS, L.top), HAIR.find(h => h.id === L.hair)].map(x => x && x.glb).filter(Boolean);
+  if (g.length) o.glb = g[g.length - 1];
   return o;
 }
 export function loadLook() {

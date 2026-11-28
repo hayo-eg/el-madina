@@ -224,6 +224,7 @@ export function buildDistrict(scene, colliders, seed = 7) {
     const r = rng();
     if (k === mid && l === mid) { park(cx, cz, true); tower(cx + 14, cz - 14); continue; }
     if (k === 1 && l === 4) { mosque(cx, cz); continue; }
+    if (k === mid + 1 && l === mid) continue; // shop block (built by shops.js)
     if (r < 0.1) { park(cx, cz, false); continue; }
     if (r < 0.38) {
       for (let a = -1; a <= 1; a += 2) for (let b = -1; b <= 1; b += 2) {

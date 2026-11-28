@@ -6,7 +6,7 @@ import { clone } from '../lib/SkeletonUtils.js';
 import { DRACOLoader } from '../lib/DRACOLoader.js';
 import { MeshoptDecoder } from '../lib/meshopt_decoder.module.js';
 
-export const Models = { ready: false, hero: null, police: [], npcs: [], stats: [], errors: [] };
+export const Models = { byFile: {}, ready: false, hero: null, police: [], npcs: [], stats: [], errors: [] };
 const pick = a => a[Math.floor(Math.random() * a.length)];
 
 function normalize(gltf, entry, baseH) {
@@ -45,6 +45,7 @@ export async function initModels(ver) {
   if (man.hero) Models.hero = await load(man.hero, 'hero');
   for (const e of man.police || []) { const t = await load(e, 'police'); if (t) Models.police.push(t); }
   for (const e of man.npcs || []) { const t = await load(e, 'npc'); if (t) Models.npcs.push(t); }
+  for (const e of man.variants || []) { const t = await load(e, 'hero'); if (t) Models.byFile[t.file] = t; }
   Models.ready = !!(Models.hero || Models.police.length || Models.npcs.length);
   return Models;
 }
@@ -52,7 +53,7 @@ export async function initModels(ver) {
 export function pickTemplate(opts) {
   if (!Models.ready) return null;
   const role = (opts && opts.role) || 'npc';
-  if (role === 'hero') return Models.hero;
+  if (role === 'hero') return (opts.glb && Models.byFile[opts.glb]) || Models.hero;
   if (role === 'police') return Models.police.length ? pick(Models.police) : null;
   if (!Models.npcs.length) return null;
   const g = opts && opts.female !== undefined ? (opts.female ? 'f' : 'm') : null;

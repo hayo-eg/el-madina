@@ -8,6 +8,7 @@ import { Missions } from './missions.js';
 import { makeSky, makeEnvMap, HORIZON } from './sky.js';
 import { NPCs } from './npc.js';
 import { initModels, Models } from './models.js';
+import { Shops } from './shops.js';
 import { Radar } from './radar.js';
 import { Police } from './police.js';
 import { Jobs, JOB_DEFS } from './jobs.js';
@@ -205,6 +206,8 @@ const colliders = city.colliders;
 const controls = new Controls();
 const START = { x: roadCoord(3), z: roadCoord(3) + (CFG.block + CFG.road) / 2 };
 const player = new Player(scene, START.x, START.z);
+const shops = new Shops(scene, colliders, { cash: () => missions.cash, spend: n => { missions.cash -= n; hud.cash(missions.cash); saveGame(); }, banner: (t, c, ms) => banner(t, c, ms), openOverlay: (id, on) => openOverlay(id, on), applyLook: o => player.rebuild(o) });
+window.__shops = shops;
 player.heading = 0;
 
 let parked = makeParked(scene, { count: CFG.parkedCount });
@@ -696,7 +699,7 @@ function radarInfo() {
 }
 function openOverlay(id, on) {
   $(id).style.display = on ? 'flex' : 'none';
-  paused = $('settings').style.display === 'flex' || $('pauseMap').style.display === 'flex' || $('menu').style.display === 'flex';
+  paused = $('settings').style.display === 'flex' || $('pauseMap').style.display === 'flex' || $('menu').style.display === 'flex' || $('shopOv').style.display === 'flex';
   if (on && id === 'pauseMap') { const i = radarInfo(); i.heading = car ? car.heading : player.heading; radar.drawPause(i, gameT); }
 }
 $('btnGear').addEventListener('click', () => openOverlay('settings', true));
@@ -779,7 +782,7 @@ function loop(now) {
   if (controls.pressed('map') && started) openOverlay('pauseMap', $('pauseMap').style.display !== 'flex');
   if (controls.pressed('settings') && started) openOverlay('settings', $('settings').style.display !== 'flex');
   if (controls.pressed('menu') && started) { renderMenu(); openOverlay('menu', $('menu').style.display !== 'flex'); }
-  if (controls.pressed('esc')) { openOverlay('menu', false); openOverlay('settings', false); openOverlay('pauseMap', false); }
+  if (controls.pressed('esc')) { shops.close(); openOverlay('menu', false); openOverlay('settings', false); openOverlay('pauseMap', false); }
 
   if (started && !paused) {
     gameT += dt; crashCool -= dt;
@@ -799,7 +802,7 @@ function loop(now) {
         const f = controls.foot();
         const sy = Math.sin(camYaw), cy = Math.cos(camYaw);
         player.update(dt, f.z * sy - f.x * cy, f.z * cy + f.x * sy, colliders);
-        if (controls.actionPressed()) { const c = nearestCar(); if (c) enterCar(c); }
+        if (controls.actionPressed()) { const sh = shops.near(player.x, player.z); if (sh) shops.open(sh); else { const c = nearestCar(); if (c) enterCar(c); } }
         if (cur) { if (controls.fire() && (WEAPONS[cur].auto || !shoot._held)) shoot(); }
         else if (controls.fire() && !shoot._held) punch();
         shoot._held = controls.fire();
@@ -838,9 +841,10 @@ function loop(now) {
 
     // prompts
     const near = !car ? nearestCar() : null;
+    const shopNear = !car ? shops.near(player.x, player.z) : null;
     const pr = $('prompt');
-    if (near) { pr.style.display = 'block'; pr.textContent = IS_TOUCH ? 'اضغط "اركب"' : 'اضغط E لركوب العربية'; } else pr.style.display = 'none';
-    $('btnAction').style.display = (near || car) ? 'flex' : 'none';
+    if (shopNear) { pr.style.display = 'block'; pr.textContent = IS_TOUCH ? 'اضغط "ادخل" للمحل' : 'اضغط E تدخل المحل'; } else if (near) { pr.style.display = 'block'; pr.textContent = IS_TOUCH ? 'اضغط "اركب"' : 'اضغط E لركوب العربية'; } else pr.style.display = 'none';
+    $('btnAction').style.display = (near || car || shopNear) ? 'flex' : 'none';
     setIcon($('btnAction'), car ? 'exit' : 'enter');
     $('btnBrake').style.display = car ? 'flex' : 'none';
     $('btnWeapon').style.display = car ? 'none' : 'flex';
@@ -860,6 +864,7 @@ function loop(now) {
   { const base = camera.userData.baseFov || 62; const tf = car ? base + Math.min(14, Math.abs(car.speed) * 0.35) : base; camera.fov += (tf - camera.fov) * 0.08; camera.updateProjectionMatrix(); }
   perfCheck(dt);
   renderer.render(scene, camera);
+  shops.update(dt, gameT); shops.renderPreview(renderer, dt);
 }
 
 const TIERS = ['low', 'medium', 'high'];
