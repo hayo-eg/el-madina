@@ -240,6 +240,7 @@ export function buildPerson(opts) {
     stache: opts.stache !== undefined ? opts.stache : !female && (police || Math.random() < 0.3), smile: pick([0, 2, -1]), hairline: !hijab && style !== 'bald'
   };
   if (!female && style === 'bald' && Math.random() < 0.4) fp.beard = 'stubble';
+  if (style === 'beardfade') { fp.beard = 'full'; fp.stache = true; }
   const face = faceMat(fp);
 
   // clothes
@@ -258,7 +259,7 @@ export function buildPerson(opts) {
   }
   if (opts.shirt) shirtType = opts.shirt;
   if (shirtType === 'jersey' && !opts.top) { topHex = pick(['#d93a3a', '#f4f4f4', '#2b6cb0', '#f2c230']); }
-  tmat = clothMat(shirtType, topHex, shirtType === 'abaya' ? pick(['#c9a24a', '#8a8a8a', '#a24a6a']) : (shirtType === 'jersey' ? pick(['#ffffff', '#101010']) : alt), alt2, bottomHex, long);
+  tmat = clothMat(shirtType, topHex, opts.c2 || (shirtType === 'abaya' ? pick(['#c9a24a', '#8a8a8a', '#a24a6a']) : (shirtType === 'jersey' ? pick(['#ffffff', '#101010']) : alt)), alt2, bottomHex, long);
   const sleeveMat = new THREE.MeshStandardMaterial({ color: topHex, roughness: 0.9, map: fabric() });
   MC['sl' + topHex] = MC['sl' + topHex] || sleeveMat; const sleeve = MC['sl' + topHex];
   const bottomMat = std(bottomHex, 0.9, fabric());
@@ -298,13 +299,22 @@ export function buildPerson(opts) {
     const dr = add(geo('drape', () => { const g = new THREE.CylinderGeometry(0.124, 0.215, 0.34, 18, 1, true); g.translate(0, -0.29, 0); return g; }), hj, 0, 0, -0.012, head);
     dr.scale.z = 0.8; dr.material = hj; hj.side = THREE.DoubleSide;
   } else if (style !== 'bald') {
-    const back = style === 'long' || style === 'bob' ? 2.35 : style === 'fade' || police ? 1.38 : style === 'short' || style === 'side' ? 1.52 : 1.7;
-    add(geo('htop', () => sphere(0.119, 0.97, 1.13, 0, 0.96, 0, Math.PI * 2)), hm, 0, 0.012, -0.008, head, true);
-    add(geo('hback' + back, () => sphere(0.122, 0.98, 1.13, 0, back, Math.PI / 2 + 0.95, Math.PI * 2 - 1.9)), hm, 0, 0.012, -0.008, head);
-    if (style === 'quiff') add(geo('quiff', () => new THREE.SphereGeometry(0.06, 12, 8)), hm, 0, 0.118, 0.04, head).scale.set(1.35, 0.62, 1.15);
-    if (style === 'side') { add(geo('sidep', () => new THREE.SphereGeometry(0.1, 12, 8, 0, Math.PI * 2, 0, 1.0)), hm, 0.025, 0.045, 0.03, head).scale.set(1.0, 0.45, 1.05); }
-    if (style === 'curly') add(geo('curlz', () => { const parts = []; for (let i = 0; i < 26; i++) { const a = i * 2.4, b = 0.25 + (i % 5) * 0.2; parts.push([new THREE.SphereGeometry(0.036, 7, 5), M(Math.sin(a) * Math.sin(b) * 0.115, 0.045 + Math.cos(b) * 0.1, Math.cos(a) * Math.sin(b) * 0.11 - 0.015)]); } return merge(parts); }), hm, 0, 0.02, -0.015, head, true);
+    const FADES = { buzz: [1.4, 0.9, 1.4], crop: [1.6, 0.96, 1.15], lowfade: [1.5, 0.96, 1.32], highfade: [1.3, 0.86, 1.05], taper: [1.45, 0.96, 1.2], curlyfade: [1.45, 0.96, 1.15], beardfade: [1.45, 0.96, 1.2], fade: [1.4, 0.96, 1.15] };
+    const BACKS = { short: 1.52, side: 1.55, quiff: 1.5, wavy: 2.0, slick: 1.7, manbun: 1.7, curly: 1.7, long: 2.35, bob: 1.9, bun: 1.9, pony: 1.9 };
+    const fd = FADES[style];
+    const back = fd ? fd[0] : (BACKS[style] || 1.7), topT = fd ? fd[1] : (style === 'wavy' ? 1.1 : 0.96), mid = fd ? fd[2] : back;
+    const stub = std(mix(hairHex, skinHex, style === 'buzz' ? 0.45 : 0.62), 0.8);
+    const topMat = style === 'buzz' ? stub : hm;
+    add(geo('htop' + topT, () => sphere(0.119, 0.97, 1.13, 0, topT, 0, Math.PI * 2)), topMat, 0, 0.012, -0.008, head, true);
+    add(geo('hback' + mid, () => sphere(0.122, 0.98, 1.13, 0, mid, Math.PI / 2 + 0.95, Math.PI * 2 - 1.9)), style === 'buzz' ? stub : hm, 0, 0.012, -0.008, head);
+    if (fd && back > mid) add(geo('hstub' + mid + back, () => sphere(0.1225, 0.98, 1.13, mid - 0.02, back - mid + 0.02, Math.PI / 2 + 0.95, Math.PI * 2 - 1.9)), stub, 0, 0.012, -0.008, head);
+    if (style === 'quiff' || style === 'curlyfade' && false) add(geo('quiff', () => new THREE.SphereGeometry(0.06, 12, 8)), hm, 0, 0.118, 0.04, head).scale.set(1.35, 0.62, 1.15);
+    if (style === 'side') add(geo('sidep', () => new THREE.SphereGeometry(0.1, 12, 8, 0, Math.PI * 2, 0, 1.0)), hm, 0.025, 0.045, 0.03, head).scale.set(1.0, 0.45, 1.05);
+    if (style === 'slick') add(geo('slickp', () => new THREE.SphereGeometry(0.1, 12, 8, 0, Math.PI * 2, 0, 1.1)), hm, 0, 0.07, -0.03, head).scale.set(1.05, 0.7, 1.35);
+    if (style === 'curly' || style === 'curlyfade') add(geo('curlz', () => { const parts = []; for (let i = 0; i < 26; i++) { const a = i * 2.4, b = 0.25 + (i % 5) * 0.2; parts.push([new THREE.SphereGeometry(0.036, 7, 5), M(Math.sin(a) * Math.sin(b) * 0.115, 0.045 + Math.cos(b) * 0.1, Math.cos(a) * Math.sin(b) * 0.11 - 0.015)]); } return merge(parts); }), hm, 0, 0.02, -0.015, head, true);
+    if (style === 'wavy') add(geo('wavez', () => { const parts = []; for (let i = 0; i < 30; i++) { const a = i * 2.1, b = 0.4 + (i % 6) * 0.22; parts.push([new THREE.SphereGeometry(0.05, 7, 5), M(Math.sin(a) * Math.sin(b) * 0.13, 0.01 + Math.cos(b) * 0.1, Math.cos(a) * Math.sin(b) * 0.12 - 0.03, 1, 1.3, 1)]); } return merge(parts); }), hm, 0, 0.02, -0.02, head, true);
     if (style === 'bun') add(geo('bun2', () => new THREE.SphereGeometry(0.052, 10, 8)), hm, 0, 0.1, -0.1, head);
+    if (style === 'manbun') add(geo('mbun', () => new THREE.SphereGeometry(0.05, 10, 8)), hm, 0, 0.115, -0.085, head);
     if (style === 'pony') add(geo('pony', () => new THREE.CapsuleGeometry(0.03, 0.2, 4, 8)), hm, 0, -0.07, -0.15, head).rotation.x = 0.25;
     if (style === 'long' || style === 'bob') {
       const L = style === 'bob' ? 0.2 : 0.34;
@@ -313,18 +323,28 @@ export function buildPerson(opts) {
     }
   }
   // glasses and shades
-  if (!hijab || Math.random() < 0.5) {
-    const gl = opts.glasses === 'specs' ? 0.2 : opts.glasses === 'shades' ? 0.05 : opts.glasses === 'none' ? 1 : Math.random();
+  if (opts.glasses ? opts.glasses !== 'none' : (!hijab || Math.random() < 0.5)) {
+    const gl = opts.glasses === 'specs' ? 0.2 : opts.glasses === 'shades' ? 0.05 : opts.glasses === 'color' ? 0.28 : opts.glasses === 'none' ? 1 : Math.random();
     if (gl < 0.14) { add(geo('shades2', () => merge([[new THREE.BoxGeometry(0.075, 0.034, 0.014), M(-0.043, 0.026, 0.115)], [new THREE.BoxGeometry(0.075, 0.034, 0.014), M(0.043, 0.026, 0.115)], [new THREE.BoxGeometry(0.03, 0.008, 0.01), M(0, 0.034, 0.108)], [new THREE.BoxGeometry(0.012, 0.008, 0.2), M(-0.0975, 0.034, 0.0)], [new THREE.BoxGeometry(0.012, 0.008, 0.2), M(0.0975, 0.034, 0.0)]])), std('#0c0c10', 0.25), 0, 0, 0, head); }
+    else if (opts.glassColor && gl < 0.3) { add(geo('gcol' + opts.glassColor, () => merge([[new THREE.BoxGeometry(0.085, 0.036, 0.012), M(-0.043, 0.026, 0.116)], [new THREE.BoxGeometry(0.085, 0.036, 0.012), M(0.043, 0.026, 0.116)], [new THREE.BoxGeometry(0.02, 0.008, 0.01), M(0, 0.034, 0.118)], [new THREE.BoxGeometry(0.008, 0.008, 0.2), M(-0.098, 0.034, 0.02)], [new THREE.BoxGeometry(0.008, 0.008, 0.2), M(0.098, 0.034, 0.02)]])), std(opts.glassColor, 0.3), 0, 0, 0, head); }
     else if (gl < 0.26) { add(geo('specs', () => merge([[new THREE.TorusGeometry(0.03, 0.0035, 6, 16), M(-0.043, 0.026, 0.12)], [new THREE.TorusGeometry(0.03, 0.0035, 6, 16), M(0.043, 0.026, 0.12)], [new THREE.BoxGeometry(0.02, 0.004, 0.004), M(0, 0.034, 0.12)], [new THREE.BoxGeometry(0.005, 0.005, 0.2), M(-0.098, 0.034, 0.02)], [new THREE.BoxGeometry(0.005, 0.005, 0.2), M(0.098, 0.034, 0.02)]])), std('#1a1a1a', 0.4), 0, 0, 0, head); }
   }
 
   // accessories
   {
-    const acc = police ? -1 : opts.acc !== undefined ? opts.acc : (Math.random() < 0.55 ? Math.floor(Math.random() * 9) : -1);
+    const acc = police || opts.look ? -1 : opts.acc !== undefined ? opts.acc : (Math.random() < 0.55 ? Math.floor(Math.random() * 9) : -1);
     const acol = opts.accColor || pick(['#c0392b', '#2e6fb5', '#222222', '#f2f2ee', '#2f8f5b', '#e0a030', '#6b3fa0']);
     const A = c => std(c, 0.8);
-    if (acc === 0 && !hijab) {
+    if (opts.hat && !hijab) {
+      const hc = opts.hatColor || '#2a3a66';
+      if (opts.hat === 'cap') { add(geo('capd', () => new THREE.SphereGeometry(0.128, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5)), A(hc), 0, 0.035, -0.012, head); add(geo('capv', () => new THREE.BoxGeometry(0.15, 0.012, 0.09)), A(hc), 0, 0.05, 0.135, head).rotation.x = 0.1; }
+      else if (opts.hat === 'beanie') { add(geo('bean', () => new THREE.SphereGeometry(0.128, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.55)), A(hc), 0, 0.045, -0.008, head); add(geo('beanb', () => new THREE.TorusGeometry(0.121, 0.022, 6, 16)), A(shade(hc, 0.85)), 0, 0.048, -0.004, head).rotation.x = Math.PI / 2; }
+      else if (opts.hat === 'fedora') { add(geo('fcrown', () => cyl(0.1, 0.116, 0.1, 16, 0.05)), A(hc), 0, 0.085, -0.004, head); add(geo('fbrim', () => cyl(0.2, 0.2, 0.012, 22, 0)), A(hc), 0, 0.075, 0, head); add(geo('fband', () => cyl(0.117, 0.117, 0.03, 16, 0.015)), A(shade(hc, 0.6)), 0, 0.08, -0.004, head); }
+      else if (opts.hat === 'straw') { add(geo('scrown', () => cyl(0.1, 0.116, 0.09, 16, 0.045)), A('#e8d49a'), 0, 0.085, -0.004, head); add(geo('sbrim', () => cyl(0.24, 0.24, 0.012, 24, 0)), A('#e8d49a'), 0, 0.075, 0, head); add(geo('sband', () => cyl(0.117, 0.117, 0.03, 16, 0.015)), A('#8a5a32'), 0, 0.08, -0.004, head); }
+    } else if (opts.pack) {
+      add(geo('bpk', () => merge([[new THREE.CapsuleGeometry(0.1, 0.17, 4, 10), M(0, 0, 0, 1.25, 1, 0.62)], [new THREE.CapsuleGeometry(0.07, 0.07, 4, 8), M(0, -0.09, -0.075, 1.25, 1, 0.6)]])), A(opts.pack), 0, 1.3, -0.15, body, true);
+      for (const sx of [-1, 1]) add(geo('bps', () => new THREE.BoxGeometry(0.03, 0.34, 0.03)), A(opts.pack), sx * 0.12, 1.36, 0.0, body);
+    } else if (acc === 0 && !hijab) {
       add(geo('capd', () => new THREE.SphereGeometry(0.128, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5)), A(acol), 0, 0.035, -0.012, head);
       add(geo('capv', () => new THREE.BoxGeometry(0.15, 0.012, 0.09)), A(acol), 0, 0.05, 0.135, head).rotation.x = 0.1;
     } else if (acc === 1 && !female && style !== 'curly') {
@@ -371,12 +391,15 @@ export function buildPerson(opts) {
   // legs
   const mkLeg = sx => {
     const hp = new THREE.Group(); hp.position.set(sx * (female ? 0.082 : 0.09), 0.93, 0); body.add(hp);
-    const trousers = !long || kind === 'dress' ? true : true;
-    add(geo('thigh2', () => cyl(0.079, 0.062, 0.46, 14, -0.23)), long && kind === 'galabeya' ? bottomMat : bottomMat, 0, 0, 0, hp, true);
+    const shorts = opts.pants === 'shorts' && !long;
+    if (shorts) { add(geo('thighS', () => cyl(0.079, 0.07, 0.3, 14, -0.15)), bottomMat, 0, 0, 0, hp, true); add(geo('thighK', () => cyl(0.07, 0.062, 0.17, 14, -0.385)), skin, 0, 0, 0, hp); } else add(geo('thigh2', () => cyl(0.079, 0.062, 0.46, 14, -0.23)), bottomMat, 0, 0, 0, hp, true);
+    if (opts.pants === 'cargo') add(geo('cargoP', () => new THREE.BoxGeometry(0.03, 0.12, 0.1)), bottomMat, sx * 0.075, -0.25, 0.015, hp);
     const kn = new THREE.Group(); kn.position.y = -0.46; hp.add(kn);
-    add(geo('knee2', () => new THREE.SphereGeometry(0.06, 10, 8)), bottomMat, 0, 0, 0, kn);
-    add(geo('shin2', () => cyl(0.06, 0.046, 0.44, 14, -0.22)), long && kind !== 'dress' ? skin : bottomMat, 0, 0, 0, kn, true);
+    add(geo('knee2', () => new THREE.SphereGeometry(0.06, 10, 8)), shorts ? skin : bottomMat, 0, 0, 0, kn);
+    add(geo('shin2', () => cyl(0.06, 0.046, 0.44, 14, -0.22)), (long && kind !== 'dress') || shorts ? skin : bottomMat, 0, 0, 0, kn, true);
+    if (opts.pants === 'jogger' && !long) add(geo('cuffJ', () => cyl(0.054, 0.054, 0.05, 12, -0.42)), std(shade(bottomHex, 0.8), 0.9), 0, 0, 0, kn);
     if (long && kind !== 'dress') add(geo('ank', () => cyl(0.047, 0.044, 0.06, 10, -0.43)), skin, 0, 0, 0, kn);
+    if (opts.shoeStyle === 'boot' || opts.shoeStyle === 'hi') add(geo('bootS', () => cyl(0.05, 0.05, opts.shoeStyle === 'boot' ? 0.14 : 0.1, 12, -0.4)), shoe, 0, 0, 0, kn);
     add(geo('shoeU', () => { const g = new THREE.CapsuleGeometry(0.046, 0.15, 4, 10); g.rotateX(Math.PI / 2); g.scale(1.0, 0.72, 1); return g; }), shoe, 0, -0.452, 0.06, kn);
     add(geo('sole2', () => new THREE.BoxGeometry(0.102, 0.022, 0.285)), std(shoeHex === '#e8e8e8' ? '#cfcfcf' : '#dcd8cf', 0.7), 0, -0.488, 0.062, kn);
     return { hp, kn };

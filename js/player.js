@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CFG, collideCircleAABBs, clamp } from './config.js';
 import { makePerson, animateWalk } from './npc.js';
+import { lookOpts, loadLook } from './customize.js';
 
 export class Player {
   constructor(scene, x, z) {
@@ -8,10 +9,12 @@ export class Player {
     this.heading = 0;
     this.moving = 0;
     this.phase = 0;
-    this.mesh = makePerson({ female: false, kind: 'casual', skin: '#cf9a6a', hair: '#15110e', style: 'short', shirt: 'hoodie', top: '#e0a030', bottom: '#3b4f78', acc: 3, accColor: '#6b3f24', glasses: 'specs', shoe: '#8a8a88', stache: false, beard: null, old: false, sleeves: true, scale: 1.0 });
+    this.scene = scene; this.mesh = makePerson(Object.assign({ role: 'hero' }, lookOpts(loadLook().look)));
     scene.add(this.mesh);
     this.syncMesh();
   }
+
+  rebuild(opts) { const m = this.mesh; this.scene.remove(m); this.mesh = makePerson(Object.assign({ role: 'hero' }, opts)); this.scene.add(this.mesh); this.syncMesh(); }
 
   syncMesh() {
     this.mesh.position.set(this.x, 0.34, this.z);

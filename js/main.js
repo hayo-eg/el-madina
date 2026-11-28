@@ -7,6 +7,7 @@ import { Controls } from './controls.js';
 import { Missions } from './missions.js';
 import { makeSky, makeEnvMap, HORIZON } from './sky.js';
 import { NPCs } from './npc.js';
+import { initModels, Models } from './models.js';
 import { Radar } from './radar.js';
 import { Police } from './police.js';
 import { Jobs, JOB_DEFS } from './jobs.js';
@@ -198,6 +199,7 @@ window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 resize();
 
 // ---------- World ----------
+await initModels(window.GAME_VERSION || '0'); window.__models = Models;
 const city = buildCity(scene);
 const colliders = city.colliders;
 const controls = new Controls();

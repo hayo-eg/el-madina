@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildPerson } from './people.js';
+import { pickTemplate, wrapImported, stepImported } from './models.js';
 import { CFG, blockCoord, clamp, collideCircleAABBs } from './config.js';
 
 const R = 23;   // sidewalk ring offset from block centre
@@ -30,7 +31,8 @@ function bubbleTex() {
 }
 
 export function makePerson(opts) {
-  const root = buildPerson(opts);
+  const tpl = pickTemplate(opts);
+  const root = tpl ? wrapImported(tpl) : buildPerson(opts);
   const U = root.userData, M = U.mats;
   const low = new THREE.Group();
   const lt = new THREE.Mesh(geo('lowT', () => new THREE.BoxGeometry(0.36, 0.62, 0.22)), M.top); lt.position.y = 1.28;
@@ -271,6 +273,7 @@ export class NPCs {
 
 // shared walk-cycle animation (used by the player too)
 export function animateWalk(u, p, amp, dt, still) {
+  if (u.imported) { stepImported(u, amp, still); return; }
   const br = Math.sin(performance.now() / 750 + (u.seed || (u.seed = Math.random() * 6)));
   const s = Math.sin(p), c2 = Math.cos(p), k = still ? 0 : 1, f = Math.min(1, dt * 14);
   u.lL.hp.rotation.x += ((s * amp * k) - u.lL.hp.rotation.x) * f;
