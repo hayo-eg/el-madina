@@ -315,8 +315,8 @@ export function buildPerson(opts) {
   // glasses and shades
   if (!hijab || Math.random() < 0.5) {
     const gl = opts.glasses === 'specs' ? 0.2 : opts.glasses === 'shades' ? 0.05 : opts.glasses === 'none' ? 1 : Math.random();
-    if (gl < 0.14) { add(geo('shades2', () => merge([[new THREE.BoxGeometry(0.075, 0.034, 0.014), M(-0.043, 0.026, 0.104)], [new THREE.BoxGeometry(0.075, 0.034, 0.014), M(0.043, 0.026, 0.104)], [new THREE.BoxGeometry(0.03, 0.008, 0.01), M(0, 0.034, 0.108)], [new THREE.BoxGeometry(0.012, 0.008, 0.2), M(-0.0975, 0.034, 0.0)], [new THREE.BoxGeometry(0.012, 0.008, 0.2), M(0.0975, 0.034, 0.0)]])), std('#0c0c10', 0.25), 0, 0, 0, head); }
-    else if (gl < 0.26) { add(geo('specs', () => merge([[new THREE.TorusGeometry(0.03, 0.0035, 6, 16), M(-0.043, 0.026, 0.106)], [new THREE.TorusGeometry(0.03, 0.0035, 6, 16), M(0.043, 0.026, 0.106)], [new THREE.BoxGeometry(0.02, 0.004, 0.004), M(0, 0.034, 0.108)]])), std('#1a1a1a', 0.4), 0, 0, 0, head); }
+    if (gl < 0.14) { add(geo('shades2', () => merge([[new THREE.BoxGeometry(0.075, 0.034, 0.014), M(-0.043, 0.026, 0.115)], [new THREE.BoxGeometry(0.075, 0.034, 0.014), M(0.043, 0.026, 0.115)], [new THREE.BoxGeometry(0.03, 0.008, 0.01), M(0, 0.034, 0.108)], [new THREE.BoxGeometry(0.012, 0.008, 0.2), M(-0.0975, 0.034, 0.0)], [new THREE.BoxGeometry(0.012, 0.008, 0.2), M(0.0975, 0.034, 0.0)]])), std('#0c0c10', 0.25), 0, 0, 0, head); }
+    else if (gl < 0.26) { add(geo('specs', () => merge([[new THREE.TorusGeometry(0.03, 0.0035, 6, 16), M(-0.043, 0.026, 0.12)], [new THREE.TorusGeometry(0.03, 0.0035, 6, 16), M(0.043, 0.026, 0.12)], [new THREE.BoxGeometry(0.02, 0.004, 0.004), M(0, 0.034, 0.12)], [new THREE.BoxGeometry(0.005, 0.005, 0.2), M(-0.098, 0.034, 0.02)], [new THREE.BoxGeometry(0.005, 0.005, 0.2), M(0.098, 0.034, 0.02)]])), std('#1a1a1a', 0.4), 0, 0, 0, head); }
   }
 
   // accessories
