@@ -25,16 +25,10 @@ function makePoliceCar() {
 }
 
 function makeOfficer() {
-  const m = makePerson({ female: false, kind: 'casual' });
-  m.traverse(o => {
-    if (o.isMesh && o.material && o.material.color) {
-      const hex = '#' + o.material.color.getHexString();
-      if (!SKIN_KEEP.has(hex)) o.material = navy;
-    }
-  });
+  const m = makePerson({ female: false, kind: 'casual', uniform: 'police', skin: '#cf9a6a', hair: '#15110e', style: 'short', top: '#eeeeea', bottom: '#e4e4df', shirt: 'polo', glasses: 'none', acc: -1, old: false, sleeves: false, shoe: '#101010' });
   // cap
-  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.1, 10), navy);
-  cap.position.y = 1.86; m.add(cap);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8, 0, 7, 0, 1.45), new THREE.MeshLambertMaterial({ color: '#15171b' }));
+  cap.scale.set(1.1, 0.55, 1.15); cap.position.set(0, 1.83, -0.01); m.add(cap);
   const gun = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.3), new THREE.MeshLambertMaterial({ color: '#222' }));
   gun.position.set(0.28, 1.1, 0.4); m.add(gun);
   return m;

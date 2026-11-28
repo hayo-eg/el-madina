@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { buildPerson } from './people.js';
 import { CFG, blockCoord, clamp, collideCircleAABBs } from './config.js';
 
 const R = 23;   // sidewalk ring offset from block centre
@@ -29,139 +30,16 @@ function bubbleTex() {
 }
 
 export function makePerson(opts) {
-  opts = opts || {};
-  const female = opts.female !== undefined ? opts.female : Math.random() < 0.45;
-  const kind = opts.kind ? opts.kind : female ? (Math.random() < 0.55 ? 'abaya' : (Math.random() < 0.5 ? 'dress' : 'casual')) : (Math.random() < 0.2 ? 'galabeya' : 'casual');
-  const hijab = female && Math.random() < 0.7 && !opts.kind;
-  const long = kind === 'galabeya' || kind === 'abaya' || kind === 'dress';
-  const skin = smat(opts.skin || pick(SKINS));
-  const top = fmat(opts.top || kind === 'galabeya' ? pick(ROBES) : kind === 'abaya' ? pick(['#1a1a1a', '#26303d', '#3b2f3f']) : pick(TOPS));
-  const bottom = fmat(opts.bottom || pick(BOTTOMS));
-  const shoe = mat(pick(SHOES));
-  const longSleeves = long || Math.random() < 0.35;
-  const sc = (opts.scale || rnd(0.9, 1.09)) * (female ? 0.95 : 1.0);
-  const wide = rnd(0.92, 1.12);
-
-  const root = new THREE.Group();
-  const body = new THREE.Group();              // scaled body group
-  body.scale.set(sc * wide, sc, sc * wide);
-  root.add(body);
-  const add = (g, m, x, y, z, parent = body, shadow = false) => { const me = new THREE.Mesh(g, m); me.position.set(x, y, z); me.castShadow = shadow; parent.add(me); return me; };
-
-  // torso: tapered, slightly flattened front-to-back
-  const torsoH = long ? 0.62 : 0.56;
-  const tor = add(geo('torso', () => cyl(0.2, 0.165, 0.56, 16, 0)), top, 0, 1.3, 0, body, true);
-  tor.scale.z = 0.62;
-  if (female) tor.scale.x = 0.9;
-  const hips = add(geo('hips', () => cyl(0.17, 0.18, 0.2, 16, 0)), long ? top : bottom, 0, 0.97, 0, body, true);
-  hips.scale.z = 0.66;
-  if (long) {
-    const robe = add(geo('robe', () => cyl(0.18, 0.29, 0.86, 18, 0)), top, 0, 0.62, 0, body, true);
-    robe.scale.z = 0.8;
-    robe.userData.robe = true;
-  }
-  if (!long) add(geo('belt', () => cyl(0.176, 0.176, 0.035, 16, 0)), mat('#2a2018'), 0, 1.04, 0, body);
-  add(geo('collar', () => new THREE.TorusGeometry(0.058, 0.014, 6, 14)), top, 0, 1.585, 0.0, body).rotation.x = Math.PI / 2;
-  add(geo('neck', () => cyl(0.052, 0.06, 0.1, 12)), skin, 0, 1.6, 0);
-  // head
-  const head = new THREE.Group(); head.position.set(0, 1.72, 0); body.add(head);
-  const face = add(geo('head', () => { const g = new THREE.SphereGeometry(0.112, 24, 18); g.scale(0.92, 1.12, 1.0); return g; }), skin, 0, 0, 0, head, true);
-  add(geo('nose', () => { const g = new THREE.ConeGeometry(0.02, 0.05, 6); g.rotateX(Math.PI / 2 * 0.0); g.rotateX(0.35); return g; }), skin, 0, -0.012, 0.114, head);
-  add(geo('nosetip', () => new THREE.SphereGeometry(0.017, 8, 6)), skin, 0, -0.03, 0.123, head);
-  for (const sx of [-1, 1]) {
-    const eye = add(geo('eyew', () => { const g = new THREE.SphereGeometry(0.0185, 10, 8); g.scale(1.25, 0.8, 0.5); return g; }), mat('#f4f1ea'), sx * 0.043, 0.024, 0.101, head);
-    add(geo('iris', () => new THREE.CircleGeometry(0.0095, 10)), mat('#2a1a10'), sx * 0.043, 0.024, 0.1085, head);
-    const brow = add(geo('brow', () => new THREE.BoxGeometry(0.05, 0.009, 0.012)), mat('#1c140f'), sx * 0.045, 0.057, 0.103, head);
-    brow.rotation.z = -sx * 0.12;
-    add(geo('lid', () => { const g = new THREE.SphereGeometry(0.02, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.45); g.scale(1.3, 0.8, 0.6); return g; }), skin, sx * 0.043, 0.027, 0.1, head);
-    add(geo('cheek', () => new THREE.SphereGeometry(0.03, 8, 6)), skin, sx * 0.062, -0.025, 0.088, head);
-  }
-  if (!female && Math.random() < 0.4) { add(geo('shades', () => new THREE.BoxGeometry(0.2, 0.034, 0.03)), mat('#0b0b10'), 0, 0.026, 0.108, head); }
-  add(geo('lipU', () => { const g = new THREE.BoxGeometry(0.04, 0.008, 0.012); return g; }), mat('#a05a54'), 0, -0.048, 0.106, head);
-  add(geo('lipL', () => new THREE.BoxGeometry(0.034, 0.009, 0.012)), mat('#b36a62'), 0, -0.058, 0.104, head);
-  add(geo('chin', () => new THREE.SphereGeometry(0.03, 8, 6)), skin, 0, -0.082, 0.07, head);
-  for (const sx of [-1, 1]) add(geo('ear', () => new THREE.SphereGeometry(0.02, 6, 6)), skin, sx * 0.1, 0, 0, head);
-  if (hijab) {
-    const hm = mat(pick(HIJABS));
-    const hj = add(geo('hijab', () => { const g = new THREE.SphereGeometry(0.135, 14, 12); g.scale(0.98, 1.1, 1.05); return g; }), hm, 0, 0.012, -0.045, head, true);
-    add(geo('hijabs', () => cyl(0.12, 0.2, 0.24, 12, 0)), hm, 0, -0.17, -0.02, head);
-  } else {
-    const hair = mat(opts.hair || pick(HAIRS));
-    const style = female ? pick(['long', 'bun', 'long']) : pick(['short', 'short', 'cap', 'bald', 'curly']);
-    if (style !== 'bald') {
-      add(geo('hcap', () => { const g = new THREE.SphereGeometry(0.12, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55); g.scale(1, 1.1, 1.08); return g; }), hair, 0, 0.012, -0.012, head, true);
-    }
-    if (style === 'long') add(geo('hlong', () => { const g = new THREE.BoxGeometry(0.22, 0.28, 0.08); return g; }), hair, 0, -0.1, -0.09, head);
-    if (style === 'bun') add(geo('bun', () => new THREE.SphereGeometry(0.05, 8, 8)), hair, 0, 0.1, -0.1, head);
-    if (style === 'curly') add(geo('curly', () => new THREE.SphereGeometry(0.135, 8, 8)), hair, 0, 0.04, -0.02, head);
-    if (!female && Math.random() < 0.3) add(geo('beard', () => { const g = new THREE.SphereGeometry(0.1, 10, 8, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.4); g.scale(0.95, 1.0, 0.9); return g; }), mat('#241a14'), 0, -0.02, 0.01, head);
-  }
-
-  // accessories: hats, bags, jackets, ties (story characters can force one with opts.acc)
-  {
-    const acc = opts.acc !== undefined ? opts.acc : (Math.random() < 0.62 ? Math.floor(Math.random() * 9) : -1);
-    const acol = opts.accColor || pick(['#c0392b', '#2e6fb5', '#222222', '#f2f2ee', '#2f8f5b', '#e0a030', '#6b3fa0']);
-    if (acc === 0 && !hijab) { // baseball cap
-      add(geo('capd', () => new THREE.SphereGeometry(0.125, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5)), mat(acol), 0, 0.03, -0.01, head);
-      add(geo('capv', () => new THREE.BoxGeometry(0.15, 0.012, 0.09)), mat(acol), 0, 0.045, 0.13, head);
-    } else if (acc === 1 && !female) { // white kufi
-      add(geo('kufi', () => new THREE.SphereGeometry(0.108, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.32)), mat('#f4f1e6'), 0, 0.075, 0, head);
-    } else if (acc === 2 && !female) { // tarboosh-style / wool hat
-      add(geo('wool', () => new THREE.SphereGeometry(0.12, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5)), mat(acol), 0, 0.04, -0.005, head);
-      add(geo('woolb', () => new THREE.TorusGeometry(0.115, 0.018, 6, 14)), mat('#e9e2d0'), 0, 0.04, 0, head).rotation.x = Math.PI / 2;
-    } else if (acc === 3) { // backpack
-      add(geo('bpk', () => new THREE.BoxGeometry(0.26, 0.34, 0.12)), mat(acol), 0, 1.3, -0.17, body, true);
-    } else if (acc === 4) { // shoulder bag
-      add(geo('bag', () => new THREE.BoxGeometry(0.2, 0.16, 0.08)), mat(acol), 0.24, 0.98, 0.04, body);
-      const st = add(geo('strap', () => new THREE.BoxGeometry(0.02, 0.62, 0.02)), mat(acol), 0.06, 1.3, 0.14, body); st.rotation.z = -0.55;
-    } else if (acc === 5 && !long) { // open jacket / vest
-      add(geo('vest', () => cyl(0.215, 0.18, 0.4, 14, 0)), mat(acol), 0, 1.28, -0.012, body).scale.z = 0.66;
-    } else if (acc === 6 && !female && !long) { // tie
-      add(geo('tie', () => new THREE.BoxGeometry(0.03, 0.26, 0.012)), mat(acol), 0, 1.36, 0.122, body);
-    } else if (acc === 7) { // headphones / earphones band
-      add(geo('hp', () => new THREE.TorusGeometry(0.115, 0.012, 6, 14, Math.PI)), mat('#1e1e1e'), 0, 0.01, 0, head);
-    } else if (acc === 8 && !long) { // scarf
-      add(geo('scarf', () => new THREE.TorusGeometry(0.075, 0.03, 6, 12)), mat(acol), 0, 1.57, 0, body).rotation.x = Math.PI / 2;
-    }
-  }
-
-  // arms: shoulder pivot -> upper arm -> elbow pivot -> forearm + hand
-  const mkArm = sx => {
-    const sh = new THREE.Group(); sh.position.set(sx * 0.235, 1.5, 0); body.add(sh);
-    const sleeve = longSleeves ? top : top;
-    add(geo('shoulder', () => new THREE.SphereGeometry(0.055, 8, 8)), top, 0, 0, 0, sh);
-    add(geo('shoulder2', () => new THREE.SphereGeometry(0.054, 12, 10)), top, 0, 0, 0, sh);
-    add(geo('uarm', () => cyl(0.05, 0.043, 0.3, 14, -0.15)), sleeve, 0, 0, 0, sh, true);
-    const el = new THREE.Group(); el.position.y = -0.3; sh.add(el);
-    add(geo('elbow', () => new THREE.SphereGeometry(0.043, 10, 8)), longSleeves ? top : skin, 0, 0, 0, el);
-    add(geo('farm', () => cyl(0.043, 0.036, 0.27, 14, -0.135)), longSleeves ? top : skin, 0, 0, 0, el);
-    add(geo('hand', () => { const g = new THREE.SphereGeometry(0.04, 12, 10); g.scale(0.85, 1.15, 0.6); return g; }), skin, 0, -0.295, 0, el);
-    add(geo('thumb', () => new THREE.CapsuleGeometry(0.011, 0.03, 3, 6)), skin, -sx * 0.026, -0.275, 0.012, el);
-    return { sh, el };
-  };
-  const aL = mkArm(-1), aR = mkArm(1);
-
-  // legs: hip pivot -> thigh -> knee pivot -> shin -> foot
-  const mkLeg = sx => {
-    const hp = new THREE.Group(); hp.position.set(sx * 0.09, 0.93, 0); body.add(hp);
-    add(geo('thigh', () => cyl(0.078, 0.06, 0.46, 14, -0.23)), bottom, 0, 0, 0, hp, true);
-    const kn = new THREE.Group(); kn.position.y = -0.46; hp.add(kn);
-    add(geo('knee', () => new THREE.SphereGeometry(0.058, 10, 8)), long ? skin : bottom, 0, 0, 0, kn);
-    add(geo('shin', () => cyl(0.058, 0.045, 0.44, 14, -0.22)), long ? skin : bottom, 0, 0, 0, kn, true);
-    add(geo('foot', () => { const g = new THREE.CapsuleGeometry(0.045, 0.17, 4, 8); g.rotateX(Math.PI / 2); g.scale(1.0, 0.75, 1); return g; }), shoe, 0, -0.455, 0.06, kn);
-    add(geo('sole', () => new THREE.BoxGeometry(0.1, 0.02, 0.29)), mat('#e9e6df'), 0, -0.49, 0.06, kn);
-    return { hp, kn };
-  };
-  const lL = mkLeg(-1), lR = mkLeg(1);
-  // cheap far-LOD stand-in (3 meshes instead of ~60)
+  const root = buildPerson(opts);
+  const U = root.userData, M = U.mats;
   const low = new THREE.Group();
-  const lt = new THREE.Mesh(geo('lowT', () => new THREE.BoxGeometry(0.36, 0.62, 0.22)), top); lt.position.y = 1.28;
-  const ll = new THREE.Mesh(geo('lowL', () => new THREE.BoxGeometry(0.22, 0.86, 0.2)), long ? top : bottom); ll.position.y = 0.5;
-  const lh = new THREE.Mesh(geo('lowH', () => new THREE.SphereGeometry(0.115, 8, 6)), skin); lh.position.y = 1.72;
-  low.add(lt, ll, lh); low.scale.copy(body.scale); low.visible = false; root.add(low);
+  const lt = new THREE.Mesh(geo('lowT', () => new THREE.BoxGeometry(0.36, 0.62, 0.22)), M.top); lt.position.y = 1.28;
+  const ll = new THREE.Mesh(geo('lowL', () => new THREE.BoxGeometry(0.22, 0.86, 0.2)), M.bottom); ll.position.y = 0.5;
+  const lh = new THREE.Mesh(geo('lowH', () => new THREE.SphereGeometry(0.115, 8, 6)), M.skin); lh.position.y = 1.72;
+  low.add(lt, ll, lh); low.scale.copy(U.scale); low.visible = false; root.add(low);
   const bub = new THREE.Sprite(new THREE.SpriteMaterial({ map: bubbleTex(), depthTest: false, transparent: true }));
   bub.scale.set(0.5, 0.5, 1); bub.position.y = 2.45; bub.visible = false; bub.renderOrder = 997; root.add(bub);
-  root.userData = { body, tor, head, aL, aR, lL, lR, long, low, bub };
+  U.low = low; U.bub = bub;
   return root;
 }
 
